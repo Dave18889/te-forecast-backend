@@ -1,0 +1,597 @@
+// Vercel serverless function: serves the T&E forecast page, but only
+// after the visitor enters a username/password (checked via HTTP Basic
+// Auth — the browser shows its own built-in login popup, no custom
+// login page needed).
+//
+// SETUP:
+//   1. In Vercel -> Project Settings -> Environment Variables, add:
+//        SITE_USER      (whatever username you want people to type)
+//        SITE_PASSWORD  (whatever password you want people to type)
+//   2. Add a vercel.json (provided alongside this file) so visits to "/"
+//      are routed through this function instead of a plain static file.
+//   3. Deploy. Visiting your site's URL will now prompt for a login.
+
+const PAGE_HTML = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>2026 Gartner T&E Forecast</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Spectral:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #ECE8DE;
+    --paper-raised: #F5F2E9;
+    --ink: #002D72;
+    --ink-soft: #5B728C;
+    --teal: #1E5AA8;
+    --amber: #B8763A;
+    --clash: #B24C3F;
+    --line: #C9C2B0;
+    --highlight: #F4D35E;
+    --card-shadow: 0 2px 6px rgba(36,48,61,0.12);
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--paper); color: var(--ink); font-family: 'Inter', sans-serif; min-height: 100vh; }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 40px 24px 80px; }
+
+  header { display: flex; align-items: baseline; justify-content: space-between; border-bottom: 2px solid var(--ink); padding-bottom: 16px; margin-bottom: 24px; }
+  h1 { font-family: 'Spectral', serif; font-weight: 600; font-size: 27px; margin: 0; }
+  .subtitle { font-size: 13px; color: var(--ink-soft); font-family: 'IBM Plex Mono', monospace; }
+
+  .mode-switch { display: inline-flex; background: var(--line); border-radius: 8px; padding: 3px; margin-bottom: 22px; }
+  .mode-btn { font-family: 'Spectral', serif; font-weight: 500; font-size: 14px; padding: 9px 20px; border: none; background: transparent; color: var(--ink-soft); border-radius: 6px; cursor: pointer; }
+  .mode-btn.active { background: var(--ink); color: var(--paper-raised); }
+
+  .search-row { display: flex; gap: 12px; align-items: center; margin-bottom: 14px; }
+  .search-box { flex: 1; position: relative; }
+  .search-box input {
+    width: 100%; padding: 12px 14px 12px 40px; font-family: 'IBM Plex Mono', monospace; font-size: 15px;
+    border: 1.5px solid var(--ink); border-radius: 3px; background: var(--paper-raised); color: var(--ink);
+  }
+  .search-box input:focus { outline: none; border-color: var(--teal); box-shadow: 0 0 0 3px rgba(62,124,116,0.15); }
+  .search-box::before { content: ""; position: absolute; left: 14px; top: 50%; width: 14px; height: 14px; transform: translateY(-50%); border: 2px solid var(--ink-soft); border-radius: 50%; }
+  .search-box::after { content: ""; position: absolute; left: 26px; top: 62%; width: 7px; height: 2px; background: var(--ink-soft); transform: rotate(45deg); }
+  .result-count { font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--ink-soft); white-space: nowrap; }
+
+  .field-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 22px; }
+  .chip { font-family: 'IBM Plex Mono', monospace; font-size: 11.5px; padding: 5px 10px; border: 1px solid var(--line); border-radius: 20px; background: var(--paper-raised); color: var(--ink-soft); cursor: pointer; user-select: none; transition: all 0.12s ease; }
+  .chip.active { background: var(--teal); border-color: var(--teal); color: white; }
+
+  .region-summary {
+    display: flex; gap: 0; margin-bottom: 20px; background: var(--paper-raised);
+    border-radius: 6px; box-shadow: var(--card-shadow); overflow: hidden;
+  }
+  .stat-card { flex: 1; padding: 16px 22px; border-right: 1px solid var(--line); }
+  .stat-card:last-child { border-right: none; }
+  .stat-value { font-family: 'Spectral', serif; font-weight: 600; font-size: 24px; color: var(--ink); }
+  .stat-value .unit { font-family: 'IBM Plex Mono', monospace; font-size: 13px; font-weight: 400; color: var(--ink-soft); margin-left: 4px; }
+  .stat-label { font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; color: var(--ink-soft); text-transform: uppercase; letter-spacing: 0.6px; margin-top: 3px; }
+
+  .tabs { display: flex; gap: 4px; padding-left: 4px; flex-wrap: wrap; }
+  .tab { font-family: 'Spectral', serif; font-weight: 500; font-size: 14px; padding: 10px 20px 12px; background: var(--line); color: var(--ink-soft); border: none; border-radius: 8px 8px 0 0; cursor: pointer; position: relative; top: 2px; transition: all 0.15s ease; }
+  .tab .count { font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; opacity: 0.7; margin-left: 6px; }
+  .tab.active { background: var(--paper-raised); color: var(--ink); top: 0; box-shadow: var(--card-shadow); z-index: 2; }
+  .tab:not(.active):hover { background: #BDB6A2; }
+
+  .sort-row { display: flex; gap: 8px; padding: 12px 4px 4px; }
+  .sort-btn {
+    font-family: 'IBM Plex Mono', monospace; font-size: 11px; padding: 5px 10px; border: 1px solid var(--line);
+    border-radius: 4px; background: var(--paper-raised); color: var(--ink-soft); cursor: pointer;
+  }
+  .sort-btn.active { border-color: var(--ink); color: var(--ink); font-weight: 500; }
+
+  .panel { background: var(--paper-raised); border-radius: 0 6px 6px 6px; box-shadow: var(--card-shadow); overflow: hidden; }
+
+  .conf-list { display: flex; flex-direction: column; }
+  .conf-item { border-bottom: 1px solid var(--line); }
+  .conf-item:last-child { border-bottom: none; }
+
+  .conf-header {
+    display: flex; align-items: center; gap: 16px; padding: 16px 20px; cursor: pointer;
+    transition: background 0.12s ease;
+  }
+  .conf-header:hover { background: #FBF9F3; }
+  .conf-item.open .conf-header { background: #F0ECE0; }
+
+  .chevron {
+    font-family: monospace; font-size: 14px; color: var(--ink-soft); width: 14px; flex-shrink: 0;
+    transition: transform 0.15s ease;
+  }
+  .conf-item.open .chevron { transform: rotate(90deg); }
+
+  .conf-main { flex: 1; min-width: 0; }
+  .conf-title { font-family: 'Spectral', serif; font-weight: 600; font-size: 15.5px; }
+  .conf-venue { font-family: 'IBM Plex Mono', monospace; font-size: 11.5px; color: var(--ink-soft); margin-top: 3px; }
+  .conf-reglead { font-family: 'IBM Plex Mono', monospace; font-size: 11.5px; color: var(--teal); margin-top: 3px; font-weight: 500; }
+  .cross-region-badge {
+    display: inline-block; margin-left: 6px; padding: 1px 7px; border-radius: 3px; font-size: 10px;
+    font-weight: 600; background: #F3E2D0; color: var(--amber); white-space: nowrap;
+  }
+
+  .conf-dates {
+    font-family: 'IBM Plex Mono', monospace; font-size: 12.5px; color: var(--ink); white-space: nowrap; text-align: right;
+  }
+  .conf-dates .label { display: block; font-size: 9.5px; color: var(--ink-soft); text-transform: uppercase; letter-spacing: 0.5px; }
+
+  .past-badge {
+    display: inline-block; margin-left: 8px; padding: 2px 8px; border-radius: 3px; font-size: 9.5px;
+    font-weight: 600; letter-spacing: 0.4px; text-transform: uppercase; background: var(--line); color: var(--ink-soft);
+  }
+  .conf-item.past .conf-header { opacity: 0.6; }
+  .conf-item.past .conf-header:hover { opacity: 0.85; }
+  .conf-item.past.open .conf-header { opacity: 1; }
+
+  .conf-meta { font-family: 'IBM Plex Mono', monospace; font-size: 11.5px; color: var(--ink-soft); white-space: nowrap; text-align: right; min-width: 110px; }
+
+  .conf-body { display: none; padding: 0 20px 18px 50px; }
+  .conf-item.open .conf-body { display: block; }
+
+  table { width: 100%; border-collapse: collapse; font-family: 'IBM Plex Mono', monospace; font-size: 12.5px; }
+  thead th {
+    text-align: left; padding: 8px 12px; font-weight: 500; font-size: 10.5px; letter-spacing: 0.5px;
+    text-transform: uppercase; color: var(--ink-soft); border-bottom: 1.5px solid var(--line);
+  }
+  tbody tr { border-bottom: 1px solid var(--line); }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: rgba(255,255,255,0.5); }
+  tbody td { padding: 9px 12px; color: var(--ink); vertical-align: top; }
+  .muted { color: var(--ink-soft); }
+
+  mark { background: var(--highlight); color: var(--ink); padding: 0 2px; border-radius: 2px; }
+
+  .role-pill { display: inline-block; padding: 2px 9px; border-radius: 3px; font-size: 10.5px; font-weight: 500; background: #DCE4F2; color: var(--teal); white-space: nowrap; }
+
+  .empty { padding: 60px 20px; text-align: center; color: var(--ink-soft); font-family: 'Spectral', serif; font-size: 16px; }
+
+  /* Person view (unchanged) */
+  .person-groups { display: flex; flex-direction: column; gap: 18px; padding: 4px 0; }
+  .person-card { background: var(--paper-raised); border-radius: 6px; box-shadow: var(--card-shadow); overflow: hidden; }
+  .person-card-head { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; background: var(--ink); color: var(--paper-raised); }
+  .person-name { font-family: 'Spectral', serif; font-weight: 600; font-size: 16px; }
+  .person-meta { font-family: 'IBM Plex Mono', monospace; font-size: 11px; opacity: 0.85; }
+  .person-warning { font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600; color: #F3C9C0; display: flex; align-items: center; gap: 5px; }
+  .clash-row { background: #F7EAE7; }
+  .clash-row:hover { background: #F3E0DB !important; }
+  .clash-flag { display: inline-flex; align-items: center; gap: 4px; font-size: 10.5px; font-weight: 600; color: var(--clash); font-family: 'IBM Plex Mono', monospace; }
+  .person-table-scroll { overflow-x: auto; }
+
+  footer { margin-top: 18px; font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--ink-soft); line-height: 1.6; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>2026 Gartner T&amp;E Forecast</h1>
+      <div class="subtitle" id="subtitle">loading…</div>
+    </div>
+  </header>
+
+  <div class="mode-switch">
+    <button class="mode-btn active" id="modeBrowse">Browse by region</button>
+    <button class="mode-btn" id="modePerson">By person / clash check</button>
+  </div>
+
+  <div id="browseView">
+    <div class="tabs" id="tabs"></div>
+    <div class="region-summary" id="regionSummary"></div>
+    <div class="search-row">
+      <div class="search-box"><input type="text" id="searchInput" placeholder="Search conferences, people, roles…" autocomplete="off"></div>
+      <div class="result-count" id="resultCount"></div>
+    </div>
+    <div class="field-chips" id="fieldChips"></div>
+    <div class="panel">
+      <div class="sort-row" id="sortRow"></div>
+      <div class="conf-list" id="confList"></div>
+      <div class="empty" id="emptyState" style="display:none;">No matching conferences — try a different search term.</div>
+    </div>
+  </div>
+
+  <div id="personView" style="display:none;">
+    <div class="search-row">
+      <div class="search-box"><input type="text" id="personSearchInput" placeholder="Search by person name…" autocomplete="off"></div>
+      <div class="result-count" id="personResultCount"></div>
+    </div>
+    <div class="person-groups" id="personGroups"></div>
+    <div class="empty" id="personEmptyState" style="display:none;">No matching person — try a different name.</div>
+  </div>
+
+  <footer>
+    Parsed from your uploaded 2026 Gartner T&amp;E Forecast workbook (NA, LATAM, EMEA, INDIA, APAC, JAPAN tabs).
+    "Total Budget" is shown exactly as entered in the source sheet — note India's figures appear to be in a
+    different currency scale (likely INR) than the other regions, so don't sum across regions without checking.
+    Rows with no onsite dates are excluded from the clash check since there's nothing to compare.
+    Within each expanded conference, the team is ordered Reg Lead → Reg Support → IT Lead → IT Support → other
+    roles → Zone Leads. The <span class="cross-region-badge" style="margin-left:0;">⇄ REGION</span> badge marks
+    someone whose home region (from the "Team View" tab) differs from the conference's region — this is only
+    shown for the ~49 people who appear in that tab; others can't be checked against it.
+  </footer>
+</div>
+
+<script>
+let RECORDS = [];
+let REGIONS = [];
+let HOME_REGION = {};
+
+const LIVE_DATA_URL = 'https://te-forecast-backend.vercel.app/api/te-forecast'; // <-- your live backend
+
+async function loadLiveData() {
+  const subtitleEl = document.getElementById('subtitle');
+  subtitleEl.textContent = 'Loading latest data\\u2026';
+  try {
+    const res = await fetch(LIVE_DATA_URL);
+    const json = await res.json();
+    RECORDS = json.records;
+    HOME_REGION = json.homeRegion;
+    REGIONS = ["NA","LATAM","EMEA","INDIA","APAC","JAPAN"].filter(r => RECORDS.some(rec => rec.region === r));
+    if (!currentRegion) currentRegion = REGIONS[0];
+    renderAll();
+  } catch (err) {
+    subtitleEl.textContent = 'Could not load live data \\u2014 check the connection.';
+    console.error(err);
+  }
+}
+;
+const SEARCHABLE = ["conference","person","role","venue"];
+const SEARCH_LABELS = { conference: "Conference", person: "Person", role: "Role", venue: "Venue" };
+const TODAY_ISO = new Date().toISOString().slice(0,10);
+
+let currentRegion = null;
+let activeFields = new Set(SEARCHABLE);
+let sortMode = "date"; // date | name | budget
+let sortDir = 1;
+let openConfs = new Set(); // keys: region::conference
+
+const tabsEl = document.getElementById('tabs');
+const chipsEl = document.getElementById('fieldChips');
+const sortRowEl = document.getElementById('sortRow');
+const confListEl = document.getElementById('confList');
+const searchInput = document.getElementById('searchInput');
+const resultCount = document.getElementById('resultCount');
+const emptyState = document.getElementById('emptyState');
+const subtitle = document.getElementById('subtitle');
+
+const personSearchInput = document.getElementById('personSearchInput');
+const personGroups = document.getElementById('personGroups');
+const personResultCount = document.getElementById('personResultCount');
+const personEmptyState = document.getElementById('personEmptyState');
+
+subtitle.textContent = \`\${REGIONS.length} region sheets · \${RECORDS.length} assignments · \${new Set(RECORDS.map(r=>r.conference)).size} conferences\`;
+
+function fmtDate(iso) {
+  if (!iso) return '<span class="muted">—</span>';
+  const d = new Date(iso + 'T00:00:00');
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+function fmtDateFull(iso) {
+  if (!iso) return '<span class="muted">—</span>';
+  const d = new Date(iso + 'T00:00:00');
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+function fmtBudget(n) { return (n === null || n === undefined) ? '<span class="muted">—</span>' : n.toLocaleString('en-US'); }
+
+document.getElementById('modeBrowse').onclick = () => setMode('browse');
+document.getElementById('modePerson').onclick = () => setMode('person');
+
+function setMode(mode) {
+  document.getElementById('modeBrowse').classList.toggle('active', mode === 'browse');
+  document.getElementById('modePerson').classList.toggle('active', mode === 'person');
+  document.getElementById('browseView').style.display = mode === 'browse' ? 'block' : 'none';
+  document.getElementById('personView').style.display = mode === 'person' ? 'block' : 'none';
+  if (mode === 'person') renderPersonView();
+}
+
+function renderTabs() {
+  tabsEl.innerHTML = "";
+  REGIONS.forEach(region => {
+    const confCount = new Set(RECORDS.filter(r => r.region === region).map(r => r.conference)).size;
+    const btn = document.createElement('button');
+    btn.className = 'tab' + (region === currentRegion ? ' active' : '');
+    btn.innerHTML = \`\${region} <span class="count">\${confCount}</span>\`;
+    btn.onclick = () => { currentRegion = region; searchInput.value = ""; renderAll(); };
+    tabsEl.appendChild(btn);
+  });
+}
+
+function renderChips() {
+  chipsEl.innerHTML = "";
+  const label = document.createElement('span');
+  label.style.cssText = "font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--ink-soft);align-self:center;margin-right:2px;";
+  label.textContent = "Search in:";
+  chipsEl.appendChild(label);
+  SEARCHABLE.forEach(field => {
+    const chip = document.createElement('div');
+    chip.className = 'chip' + (activeFields.has(field) ? ' active' : '');
+    chip.textContent = SEARCH_LABELS[field];
+    chip.onclick = () => { activeFields.has(field) ? activeFields.delete(field) : activeFields.add(field); renderConfList(); };
+    chipsEl.appendChild(chip);
+  });
+}
+
+const regionSummaryEl = document.getElementById('regionSummary');
+
+function renderRegionSummary() {
+  const regionRecords = RECORDS.filter(r => r.region === currentRegion);
+  const totalCost = regionRecords.reduce((s,r) => s + (r.totalBudget||0), 0);
+  const uniquePeople = new Set(regionRecords.map(r => r.person).filter(Boolean)).size;
+  const confCount = new Set(regionRecords.map(r => r.conference)).size;
+
+  regionSummaryEl.innerHTML = \`
+    <div class="stat-card">
+      <div class="stat-value">\${totalCost.toLocaleString('en-US')}</div>
+      <div class="stat-label">Total forecasted cost</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value">\${uniquePeople}</div>
+      <div class="stat-label">Unique team members</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value">\${confCount}</div>
+      <div class="stat-label">Conferences</div>
+    </div>
+  \`;
+}
+
+function renderSortRow() {
+  sortRowEl.innerHTML = "";
+  const label = document.createElement('span');
+  label.style.cssText = "font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--ink-soft);align-self:center;margin-right:2px;";
+  label.textContent = "Sort:";
+  sortRowEl.appendChild(label);
+  [["date","Event date"],["name","Name"],["budget","Team budget"]].forEach(([key,lbl]) => {
+    const btn = document.createElement('button');
+    btn.className = 'sort-btn' + (sortMode === key ? ' active' : '');
+    btn.textContent = lbl + (sortMode === key ? (sortDir === 1 ? ' ▲' : ' ▼') : '');
+    btn.onclick = () => { sortDir = (sortMode === key) ? -sortDir : 1; sortMode = key; renderConfList(); };
+    sortRowEl.appendChild(btn);
+  });
+}
+
+function rolePriority(role) {
+  const r = (role || '').toLowerCase();
+  if (r.includes('reg lead')) return 0;
+  if (r.includes('reg support')) return 1;
+  if (r.includes('it lead')) return 2;
+  if (r.includes('it support')) return 3;
+  if (r.includes('zone lead')) return 5;
+  return 4; // everything else (Housing, FOH, Exec support, etc.) sits before zone leads
+}
+
+function findRegLead(people) {
+  const lead = people.find(p => (p.role || '').toLowerCase().includes('reg lead'));
+  return lead ? lead.person : null;
+}
+
+function highlight(text, term) {
+  if (!term || !text) return text || '';
+  const idx = text.toLowerCase().indexOf(term.toLowerCase());
+  if (idx === -1) return text;
+  return text.slice(0, idx) + '<mark>' + text.slice(idx, idx + term.length) + '</mark>' + text.slice(idx + term.length);
+}
+
+function groupConferences(region) {
+  const map = new Map();
+  RECORDS.filter(r => r.region === region).forEach(r => {
+    if (!map.has(r.conference)) {
+      map.set(r.conference, {
+        conference: r.conference,
+        venue: r.venue,
+        eventStart: r.eventStart,
+        eventEnd: r.eventEnd,
+        eventDatesText: r.eventDatesText,
+        region: r.region,
+        people: []
+      });
+    }
+    map.get(r.conference).people.push(r);
+  });
+  return [...map.values()];
+}
+
+function renderConfList() {
+  const term = searchInput.value.trim().toLowerCase();
+  let confs = groupConferences(currentRegion);
+
+  // filter: a conference matches if the conference/venue matches, OR any person/role within it matches
+  if (term) {
+    confs = confs.filter(c => {
+      const confMatch = (activeFields.has("conference") && c.conference.toLowerCase().includes(term)) ||
+                        (activeFields.has("venue") && c.venue && c.venue.toLowerCase().includes(term));
+      const peopleMatch = c.people.some(p =>
+        (activeFields.has("person") && p.person && p.person.toLowerCase().includes(term)) ||
+        (activeFields.has("role") && p.role && p.role.toLowerCase().includes(term))
+      );
+      return confMatch || peopleMatch;
+    });
+  }
+
+  confs.sort((a,b) => {
+    if (sortMode === "name") return a.conference.localeCompare(b.conference) * sortDir;
+    if (sortMode === "budget") {
+      const ba = a.people.reduce((s,p)=>s+(p.totalBudget||0),0);
+      const bb = b.people.reduce((s,p)=>s+(p.totalBudget||0),0);
+      return (ba-bb) * sortDir;
+    }
+    return String(a.eventStart||'').localeCompare(String(b.eventStart||'')) * sortDir;
+  });
+
+  confListEl.innerHTML = "";
+  confs.forEach(c => {
+    const key = c.region + '::' + c.conference;
+    // auto-expand if search matches inside the people list (not just the conference itself)
+    const peopleMatch = term && c.people.some(p =>
+      (activeFields.has("person") && p.person && p.person.toLowerCase().includes(term)) ||
+      (activeFields.has("role") && p.role && p.role.toLowerCase().includes(term))
+    );
+    const isOpen = openConfs.has(key) || peopleMatch;
+
+    const item = document.createElement('div');
+    const isPast = c.eventEnd && c.eventEnd < TODAY_ISO;
+    item.className = 'conf-item' + (isOpen ? ' open' : '') + (isPast ? ' past' : '');
+
+    const budgetTotal = c.people.reduce((s,p)=>s+(p.totalBudget||0),0);
+    const regLead = findRegLead(c.people);
+
+    const head = document.createElement('div');
+    head.className = 'conf-header';
+    head.innerHTML = \`
+      <span class="chevron">›</span>
+      <div class="conf-main">
+        <div class="conf-title">\${highlight(c.conference, activeFields.has("conference") ? term : "")}\${isPast ? '<span class="past-badge">Completed</span>' : ''}</div>
+        \${c.venue ? \`<div class="conf-venue">\${highlight(c.venue, activeFields.has("venue") ? term : "")}</div>\` : ''}
+        \${regLead ? \`<div class="conf-reglead">Reg Lead: \${regLead}</div>\` : ''}
+      </div>
+      <div class="conf-meta">\${c.people.length} on team<br>\${budgetTotal.toLocaleString('en-US')} total</div>
+      <div class="conf-dates"><span class="label">Event</span>\${fmtDate(c.eventStart)} – \${fmtDateFull(c.eventEnd)}</div>
+    \`;
+    head.onclick = () => {
+      if (openConfs.has(key)) openConfs.delete(key); else openConfs.add(key);
+      renderConfList();
+    };
+    item.appendChild(head);
+
+    const body = document.createElement('div');
+    body.className = 'conf-body';
+    const peopleSorted = c.people.slice().sort((a,b) => {
+      const pa = rolePriority(a.role), pb = rolePriority(b.role);
+      if (pa !== pb) return pa - pb;
+      return (a.role||'').localeCompare(b.role||'');
+    });
+    const table = document.createElement('table');
+    table.innerHTML = \`<thead><tr><th>Person</th><th>Role</th><th>In Date</th><th>Out Date</th><th>Total Budget</th></tr></thead>\`;
+    const tbody = document.createElement('tbody');
+    peopleSorted.forEach(p => {
+      const tr = document.createElement('tr');
+      const home = p.person ? HOME_REGION[p.person] : null;
+      const crossRegion = home && home !== c.region;
+      tr.innerHTML = \`
+        <td>\${p.person ? highlight(p.person, activeFields.has("person") ? term : "") : '<span class="muted">Unassigned</span>'}\${crossRegion ? \`<span class="cross-region-badge" title="Home region: \${home}">⇄ \${home}</span>\` : ''}</td>
+        <td><span class="role-pill">\${highlight(p.role, activeFields.has("role") ? term : "")}</span></td>
+        <td>\${fmtDateFull(p.inDate)}</td>
+        <td>\${fmtDateFull(p.outDate)}</td>
+        <td>\${fmtBudget(p.totalBudget)}</td>
+      \`;
+      tbody.appendChild(tr);
+    });
+    table.appendChild(tbody);
+    body.appendChild(table);
+    item.appendChild(body);
+
+    confListEl.appendChild(item);
+  });
+
+  emptyState.style.display = confs.length === 0 ? 'block' : 'none';
+  resultCount.textContent = \`\${confs.length} of \${groupConferences(currentRegion).length} conferences\`;
+}
+
+function renderAll() { renderTabs(); renderRegionSummary(); renderChips(); renderSortRow(); renderConfList(); }
+searchInput.addEventListener('input', renderConfList);
+
+function datesOverlap(aStart, aEnd, bStart, bEnd) { return aStart <= bEnd && bStart <= aEnd; }
+
+function computeClashes(records) {
+  const clashSet = new Set();
+  for (let i = 0; i < records.length; i++) {
+    if (!records[i].inDate || !records[i].outDate) continue;
+    for (let j = i + 1; j < records.length; j++) {
+      if (!records[j].inDate || !records[j].outDate) continue;
+      if (datesOverlap(records[i].inDate, records[i].outDate, records[j].inDate, records[j].outDate)) {
+        clashSet.add(i); clashSet.add(j);
+      }
+    }
+  }
+  return clashSet;
+}
+
+function renderPersonView() {
+  const term = personSearchInput.value.trim().toLowerCase();
+  const people = [...new Set(RECORDS.map(r => r.person).filter(Boolean))].sort();
+  const matched = term ? people.filter(p => p.toLowerCase().includes(term)) : people;
+
+  personGroups.innerHTML = "";
+  let totalClashCount = 0;
+
+  matched.forEach(person => {
+    const records = RECORDS.filter(r => r.person === person)
+      .slice()
+      .sort((a,b) => (a.inDate||'').localeCompare(b.inDate||''));
+    const clashSet = computeClashes(records);
+    if (clashSet.size > 0) totalClashCount++;
+
+    const budgetTotal = records.reduce((s,r)=> s + (r.totalBudget||0), 0);
+
+    const card = document.createElement('div');
+    card.className = 'person-card';
+
+    const head = document.createElement('div');
+    head.className = 'person-card-head';
+    head.innerHTML = \`
+      <div>
+        <div class="person-name">\${person}</div>
+        <div class="person-meta">\${records.length} conference\${records.length === 1 ? '' : 's'} assigned · \${budgetTotal.toLocaleString('en-US')} total budget</div>
+      </div>
+      \${clashSet.size > 0 ? \`<div class="person-warning">⚠ \${clashSet.size} overlapping trip\${clashSet.size===1?'':'s'}</div>\` : ''}
+    \`;
+    card.appendChild(head);
+
+    const tableWrap = document.createElement('div');
+    tableWrap.className = 'person-table-scroll';
+    const table = document.createElement('table');
+    table.innerHTML = \`<thead><tr><th>Region</th><th>Conference</th><th>Role</th><th>In Date</th><th>Out Date</th><th>Total Budget</th></tr></thead>\`;
+    const tbody = document.createElement('tbody');
+    records.forEach((r, i) => {
+      const tr = document.createElement('tr');
+      if (clashSet.has(i)) tr.className = 'clash-row';
+      tr.innerHTML = \`
+        <td>\${r.region}</td>
+        <td>\${r.conference}\${clashSet.has(i) ? ' <span class="clash-flag">⚠ overlap</span>' : ''}</td>
+        <td><span class="role-pill">\${r.role}</span></td>
+        <td>\${fmtDateFull(r.inDate)}</td>
+        <td>\${fmtDateFull(r.outDate)}</td>
+        <td>\${fmtBudget(r.totalBudget)}</td>
+      \`;
+      tbody.appendChild(tr);
+    });
+    table.appendChild(tbody);
+    tableWrap.appendChild(table);
+    card.appendChild(tableWrap);
+    personGroups.appendChild(card);
+  });
+
+  personEmptyState.style.display = matched.length === 0 ? 'block' : 'none';
+  personResultCount.textContent = \`\${matched.length} of \${people.length} people\` + (totalClashCount ? \` · \${totalClashCount} with overlapping trips\` : '');
+}
+
+personSearchInput.addEventListener('input', renderPersonView);
+
+loadLiveData();
+// Refresh automatically every 5 minutes while the page is open
+setInterval(loadLiveData, 5 * 60 * 1000);
+</script>
+</body>
+</html>
+`;
+
+module.exports = function handler(req, res) {
+  const auth = req.headers.authorization;
+
+  const expectedUser = process.env.SITE_USER;
+  const expectedPass = process.env.SITE_PASSWORD;
+
+  let authorized = false;
+  if (auth && auth.startsWith('Basic ')) {
+    const decoded = Buffer.from(auth.slice(6), 'base64').toString('utf8');
+    const [user, pass] = decoded.split(':');
+    authorized = user === expectedUser && pass === expectedPass;
+  }
+
+  if (!authorized) {
+    res.setHeader('WWW-Authenticate', 'Basic realm="T&E Forecast"');
+    res.status(401).send('Authentication required.');
+    return;
+  }
+
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  res.status(200).send(PAGE_HTML);
+};
