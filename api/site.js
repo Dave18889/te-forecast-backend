@@ -2,14 +2,6 @@
 // after the visitor enters a username/password (checked via HTTP Basic
 // Auth — the browser shows its own built-in login popup, no custom
 // login page needed).
-//
-// SETUP:
-//   1. In Vercel -> Project Settings -> Environment Variables, add:
-//        SITE_USER      (whatever username you want people to type)
-//        SITE_PASSWORD  (whatever password you want people to type)
-//   2. Add a vercel.json (provided alongside this file) so visits to "/"
-//      are routed through this function instead of a plain static file.
-//   3. Deploy. Visiting your site's URL will now prompt for a login.
 
 const PAGE_HTML = `<!DOCTYPE html>
 <html lang="en">
@@ -17,160 +9,263 @@ const PAGE_HTML = `<!DOCTYPE html>
 <meta charset="UTF-8">
 <title>2026 Gartner T&E Forecast</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Spectral:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@600;700;800&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
   :root {
-    --paper: #ECE8DE;
-    --paper-raised: #F5F2E9;
-    --ink: #002D72;
-    --ink-soft: #5B728C;
-    --teal: #1E5AA8;
-    --amber: #B8763A;
-    --clash: #B24C3F;
-    --line: #C9C2B0;
-    --highlight: #F4D35E;
-    --card-shadow: 0 2px 6px rgba(36,48,61,0.12);
+    --navy: #002856;
+    --navy-deep: #001B3A;
+    --accent: #C8102E;
+    --bg: #FFFFFF;
+    --bg-soft: #F4F6F9;
+    --text: #1A2B3C;
+    --text-soft: #5B6B7F;
+    --text-faint: #8A97A8;
+    --line: #E2E6EC;
+    --clash: #C8102E;
+    --clash-soft: #FCEAEC;
+    --gold: #A67C27;
+    --gold-soft: #F7F0E2;
+    --shadow: 0 2px 10px rgba(0,40,86,0.08);
   }
   * { box-sizing: border-box; }
-  body { margin: 0; background: var(--paper); color: var(--ink); font-family: 'Inter', sans-serif; min-height: 100vh; }
-  .wrap { max-width: 1180px; margin: 0 auto; padding: 40px 24px 80px; }
+  body { margin: 0; background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; min-height: 100vh; }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 0 24px 90px; }
 
-  header { display: flex; align-items: baseline; justify-content: space-between; border-bottom: 2px solid var(--ink); padding-bottom: 16px; margin-bottom: 24px; }
-  h1 { font-family: 'Spectral', serif; font-weight: 600; font-size: 27px; margin: 0; }
-  .subtitle { font-size: 13px; color: var(--ink-soft); font-family: 'IBM Plex Mono', monospace; }
+  header {
+    display: flex; align-items: center; justify-content: space-between;
+    background: var(--navy); margin: 0 -24px 28px; padding: 38px 24px;
+  }
+  h1 {
+    font-family: 'Libre Franklin', sans-serif; font-weight: 800; font-size: 38px; margin: 0;
+    color: #fff; letter-spacing: -0.3px;
+  }
+  .subtitle {
+    font-size: 13px; color: rgba(255,255,255,0.68); font-family: 'IBM Plex Mono', monospace;
+    margin-top: 10px; display: flex; align-items: center; gap: 7px;
+  }
+  .live-dot {
+    width: 6px; height: 6px; border-radius: 50%; background: var(--accent); flex-shrink: 0;
+    box-shadow: 0 0 0 0 rgba(200,16,46,0.5); animation: pulse 2.2s infinite;
+  }
+  @keyframes pulse {
+    0% { box-shadow: 0 0 0 0 rgba(200,16,46,0.45); }
+    70% { box-shadow: 0 0 0 6px rgba(200,16,46,0); }
+    100% { box-shadow: 0 0 0 0 rgba(200,16,46,0); }
+  }
 
-  .mode-switch { display: inline-flex; background: var(--line); border-radius: 8px; padding: 3px; margin-bottom: 22px; }
-  .mode-btn { font-family: 'Spectral', serif; font-weight: 500; font-size: 14px; padding: 9px 20px; border: none; background: transparent; color: var(--ink-soft); border-radius: 6px; cursor: pointer; }
-  .mode-btn.active { background: var(--ink); color: var(--paper-raised); }
+  .mode-switch { display: inline-flex; background: var(--bg-soft); border: 1px solid var(--line); border-radius: 6px; padding: 3px; margin-bottom: 24px; }
+  .mode-btn {
+    font-family: 'Libre Franklin', sans-serif; font-weight: 700; font-size: 13.5px; padding: 9px 20px; border: none;
+    background: transparent; color: var(--text-soft); border-radius: 4px; cursor: pointer; transition: all 0.15s ease;
+  }
+  .mode-btn.active { background: var(--navy); color: #fff; }
+  .mode-btn:not(.active):hover { color: var(--navy); }
 
   .search-row { display: flex; gap: 12px; align-items: center; margin-bottom: 14px; }
   .search-box { flex: 1; position: relative; }
   .search-box input {
-    width: 100%; padding: 12px 14px 12px 40px; font-family: 'IBM Plex Mono', monospace; font-size: 15px;
-    border: 1.5px solid var(--ink); border-radius: 3px; background: var(--paper-raised); color: var(--ink);
+    width: 100%; padding: 11px 14px 11px 40px; font-family: 'Inter', sans-serif; font-size: 14.5px;
+    border: 1.5px solid var(--line); border-radius: 4px; background: var(--bg); color: var(--text);
   }
-  .search-box input:focus { outline: none; border-color: var(--teal); box-shadow: 0 0 0 3px rgba(62,124,116,0.15); }
-  .search-box::before { content: ""; position: absolute; left: 14px; top: 50%; width: 14px; height: 14px; transform: translateY(-50%); border: 2px solid var(--ink-soft); border-radius: 50%; }
-  .search-box::after { content: ""; position: absolute; left: 26px; top: 62%; width: 7px; height: 2px; background: var(--ink-soft); transform: rotate(45deg); }
-  .result-count { font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--ink-soft); white-space: nowrap; }
+  .search-box input::placeholder { color: var(--text-faint); }
+  .search-box input:focus { outline: none; border-color: var(--navy); box-shadow: 0 0 0 3px rgba(0,40,86,0.1); }
+  .search-box::before { content: ""; position: absolute; left: 14px; top: 50%; width: 13px; height: 13px; transform: translateY(-50%); border: 1.5px solid var(--text-faint); border-radius: 50%; }
+  .search-box::after { content: ""; position: absolute; left: 25px; top: 61%; width: 7px; height: 1.5px; background: var(--text-faint); transform: rotate(45deg); }
+  .result-count { font-family: 'IBM Plex Mono', monospace; font-size: 11.5px; color: var(--text-soft); white-space: nowrap; }
 
-  .field-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 22px; }
-  .chip { font-family: 'IBM Plex Mono', monospace; font-size: 11.5px; padding: 5px 10px; border: 1px solid var(--line); border-radius: 20px; background: var(--paper-raised); color: var(--ink-soft); cursor: pointer; user-select: none; transition: all 0.12s ease; }
-  .chip.active { background: var(--teal); border-color: var(--teal); color: white; }
+  .field-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 24px; align-items: center; }
+  .chip {
+    font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 500; padding: 5px 12px; border: 1px solid var(--line);
+    border-radius: 20px; background: var(--bg); color: var(--text-soft); cursor: pointer; user-select: none;
+    transition: all 0.12s ease;
+  }
+  .chip.active { background: var(--navy); border-color: var(--navy); color: white; }
 
   .region-summary {
-    display: flex; gap: 0; margin-bottom: 20px; background: var(--paper-raised);
-    border-radius: 6px; box-shadow: var(--card-shadow); overflow: hidden;
+    display: flex; gap: 0; margin-bottom: 22px; background: var(--bg);
+    border: 1px solid var(--line); border-top: 3px solid var(--navy); border-radius: 6px; box-shadow: var(--shadow); overflow: hidden;
   }
-  .stat-card { flex: 1; padding: 16px 22px; border-right: 1px solid var(--line); }
+  .stat-card { flex: 1; padding: 18px 24px; border-right: 1px solid var(--line); }
   .stat-card:last-child { border-right: none; }
-  .stat-value { font-family: 'Spectral', serif; font-weight: 600; font-size: 24px; color: var(--ink); }
-  .stat-value .unit { font-family: 'IBM Plex Mono', monospace; font-size: 13px; font-weight: 400; color: var(--ink-soft); margin-left: 4px; }
-  .stat-label { font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; color: var(--ink-soft); text-transform: uppercase; letter-spacing: 0.6px; margin-top: 3px; }
-
-  .tabs { display: flex; gap: 4px; padding-left: 4px; flex-wrap: wrap; }
-  .tab { font-family: 'Spectral', serif; font-weight: 500; font-size: 14px; padding: 10px 20px 12px; background: var(--line); color: var(--ink-soft); border: none; border-radius: 8px 8px 0 0; cursor: pointer; position: relative; top: 2px; transition: all 0.15s ease; }
-  .tab .count { font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; opacity: 0.7; margin-left: 6px; }
-  .tab.active { background: var(--paper-raised); color: var(--ink); top: 0; box-shadow: var(--card-shadow); z-index: 2; }
-  .tab:not(.active):hover { background: #BDB6A2; }
-
-  .sort-row { display: flex; gap: 8px; padding: 12px 4px 4px; }
-  .sort-btn {
-    font-family: 'IBM Plex Mono', monospace; font-size: 11px; padding: 5px 10px; border: 1px solid var(--line);
-    border-radius: 4px; background: var(--paper-raised); color: var(--ink-soft); cursor: pointer;
+  .stat-value {
+    font-family: 'IBM Plex Mono', monospace; font-weight: 600; font-size: 25px; color: var(--navy);
+    letter-spacing: 0.2px; border-bottom: 2px solid var(--accent); padding-bottom: 4px; display: inline-block;
   }
-  .sort-btn.active { border-color: var(--ink); color: var(--ink); font-weight: 500; }
+  .stat-label { font-family: 'Inter', sans-serif; font-size: 10.5px; color: var(--text-soft); text-transform: uppercase; letter-spacing: 0.8px; margin-top: 8px; font-weight: 600; }
 
-  .panel { background: var(--paper-raised); border-radius: 0 6px 6px 6px; box-shadow: var(--card-shadow); overflow: hidden; }
+  .tabs { display: flex; gap: 2px; padding-left: 2px; flex-wrap: wrap; border-bottom: 1px solid var(--line); }
+  .tab {
+    font-family: 'Libre Franklin', sans-serif; font-weight: 700; font-size: 13px; letter-spacing: 0.3px;
+    padding: 12px 18px; background: transparent; color: var(--text-soft); border: none;
+    border-bottom: 3px solid transparent; cursor: pointer; position: relative; bottom: -1px; transition: all 0.15s ease;
+    text-transform: uppercase;
+  }
+  .tab .count { font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; opacity: 0.7; margin-left: 6px; font-weight: 400; }
+  .tab.active { color: var(--navy); border-bottom-color: var(--accent); }
+  .tab:not(.active):hover { color: var(--navy); }
+
+  .sort-row { display: flex; gap: 8px; padding: 14px 18px 4px; align-items: center; }
+  .sort-btn {
+    font-family: 'Inter', sans-serif; font-size: 11.5px; font-weight: 500; padding: 5px 11px; border: 1px solid var(--line);
+    border-radius: 4px; background: var(--bg); color: var(--text-soft); cursor: pointer; transition: all 0.12s ease;
+  }
+  .sort-btn.active { border-color: var(--navy); color: var(--navy); font-weight: 700; }
+
+  .panel {
+    background: var(--bg); border: 1px solid var(--line); border-top: none;
+    border-radius: 0 0 6px 6px; box-shadow: var(--shadow); overflow: hidden;
+  }
 
   .conf-list { display: flex; flex-direction: column; }
-  .conf-item { border-bottom: 1px solid var(--line); }
+  .conf-item { border-bottom: 1px solid var(--line); border-left: 3px solid transparent; }
   .conf-item:last-child { border-bottom: none; }
+  .conf-item.open { border-left-color: var(--accent); }
 
   .conf-header {
-    display: flex; align-items: center; gap: 16px; padding: 16px 20px; cursor: pointer;
+    display: flex; align-items: center; gap: 18px; padding: 17px 22px; cursor: pointer;
     transition: background 0.12s ease;
   }
-  .conf-header:hover { background: #FBF9F3; }
-  .conf-item.open .conf-header { background: #F0ECE0; }
+  .conf-header:hover { background: var(--bg-soft); }
+  .conf-item.open .conf-header { background: var(--bg-soft); }
 
   .chevron {
-    font-family: monospace; font-size: 14px; color: var(--ink-soft); width: 14px; flex-shrink: 0;
-    transition: transform 0.15s ease;
+    font-family: 'IBM Plex Mono', monospace; font-size: 15px; color: var(--accent); width: 14px; flex-shrink: 0;
+    transition: transform 0.2s ease;
   }
   .conf-item.open .chevron { transform: rotate(90deg); }
 
   .conf-main { flex: 1; min-width: 0; }
-  .conf-title { font-family: 'Spectral', serif; font-weight: 600; font-size: 15.5px; }
-  .conf-venue { font-family: 'IBM Plex Mono', monospace; font-size: 11.5px; color: var(--ink-soft); margin-top: 3px; }
-  .conf-reglead { font-family: 'IBM Plex Mono', monospace; font-size: 11.5px; color: var(--teal); margin-top: 3px; font-weight: 500; }
+  .conf-title-row { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+  .conf-title { font-family: 'Libre Franklin', sans-serif; font-weight: 700; font-size: 15.5px; color: var(--navy); }
+  .conf-code {
+    font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 600; color: var(--navy);
+    border: 1px solid var(--line); background: var(--bg-soft); border-radius: 3px; padding: 1px 6px; letter-spacing: 0.4px;
+  }
+  .conf-venue { font-family: 'Inter', sans-serif; font-size: 12px; color: var(--text-soft); margin-top: 4px; }
+  .conf-reglead { font-family: 'Inter', sans-serif; font-size: 12px; color: var(--text-soft); margin-top: 4px; }
+  .conf-reglead b { color: var(--navy); font-weight: 600; }
   .cross-region-badge {
     display: inline-block; margin-left: 6px; padding: 1px 7px; border-radius: 3px; font-size: 10px;
-    font-weight: 600; background: #F3E2D0; color: var(--amber); white-space: nowrap;
+    font-family: 'IBM Plex Mono', monospace; font-weight: 600; background: var(--gold-soft); color: var(--gold); white-space: nowrap;
   }
 
   .conf-dates {
-    font-family: 'IBM Plex Mono', monospace; font-size: 12.5px; color: var(--ink); white-space: nowrap; text-align: right;
+    font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: var(--navy); white-space: nowrap; text-align: right;
   }
-  .conf-dates .label { display: block; font-size: 9.5px; color: var(--ink-soft); text-transform: uppercase; letter-spacing: 0.5px; }
+  .conf-dates .label { display: block; font-size: 9px; color: var(--text-faint); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 2px; font-family: 'Inter', sans-serif; font-weight: 600; }
+  .conf-dates .dash { color: var(--accent); margin: 0 4px; }
 
   .past-badge {
-    display: inline-block; margin-left: 8px; padding: 2px 8px; border-radius: 3px; font-size: 9.5px;
-    font-weight: 600; letter-spacing: 0.4px; text-transform: uppercase; background: var(--line); color: var(--ink-soft);
+    display: inline-block; margin-left: 2px; padding: 2px 8px; border-radius: 3px; font-size: 9px;
+    font-family: 'Inter', sans-serif; font-weight: 700; letter-spacing: 0.6px; text-transform: uppercase;
+    background: var(--bg-soft); color: var(--text-faint); border: 1px solid var(--line);
   }
   .conf-item.past .conf-header { opacity: 0.6; }
-  .conf-item.past .conf-header:hover { opacity: 0.85; }
+  .conf-item.past .conf-header:hover { opacity: 0.9; }
   .conf-item.past.open .conf-header { opacity: 1; }
 
-  .conf-meta { font-family: 'IBM Plex Mono', monospace; font-size: 11.5px; color: var(--ink-soft); white-space: nowrap; text-align: right; min-width: 110px; }
+  .conf-meta { font-family: 'IBM Plex Mono', monospace; font-size: 11.5px; color: var(--text-soft); white-space: nowrap; text-align: right; min-width: 120px; line-height: 1.5; }
+  .conf-meta b { color: var(--navy); }
 
-  .conf-body { display: none; padding: 0 20px 18px 50px; }
-  .conf-item.open .conf-body { display: block; }
+  .conf-body {
+    max-height: 0; opacity: 0; overflow: hidden; padding: 0 22px 0 58px;
+    transition: max-height 0.28s ease, opacity 0.2s ease, padding 0.28s ease;
+  }
+  .conf-item.open .conf-body { max-height: 900px; opacity: 1; padding: 0 22px 18px 58px; }
 
-  table { width: 100%; border-collapse: collapse; font-family: 'IBM Plex Mono', monospace; font-size: 12.5px; }
+  table { width: 100%; border-collapse: collapse; font-family: 'IBM Plex Mono', monospace; font-size: 12px; }
   thead th {
-    text-align: left; padding: 8px 12px; font-weight: 500; font-size: 10.5px; letter-spacing: 0.5px;
-    text-transform: uppercase; color: var(--ink-soft); border-bottom: 1.5px solid var(--line);
+    text-align: left; padding: 9px 12px; font-weight: 600; font-size: 10px; letter-spacing: 0.6px;
+    text-transform: uppercase; color: var(--text-faint); border-bottom: 1px solid var(--line); font-family: 'Inter', sans-serif;
   }
   tbody tr { border-bottom: 1px solid var(--line); }
   tbody tr:last-child { border-bottom: none; }
-  tbody tr:hover { background: rgba(255,255,255,0.5); }
-  tbody td { padding: 9px 12px; color: var(--ink); vertical-align: top; }
-  .muted { color: var(--ink-soft); }
+  tbody tr:hover { background: var(--bg-soft); }
+  tbody td { padding: 10px 12px; color: var(--text); vertical-align: top; }
+  .muted { color: var(--text-faint); }
 
-  mark { background: var(--highlight); color: var(--ink); padding: 0 2px; border-radius: 2px; }
+  mark { background: #FDE9A8; color: var(--text); padding: 0 3px; border-radius: 2px; font-weight: 600; }
 
-  .role-pill { display: inline-block; padding: 2px 9px; border-radius: 3px; font-size: 10.5px; font-weight: 500; background: #DCE4F2; color: var(--teal); white-space: nowrap; }
+  .role-pill {
+    display: inline-block; padding: 2px 9px; border-radius: 3px; font-size: 10.5px; font-weight: 600;
+    background: #E3EBF5; color: var(--navy); white-space: nowrap; font-family: 'IBM Plex Mono', monospace;
+  }
 
-  .empty { padding: 60px 20px; text-align: center; color: var(--ink-soft); font-family: 'Spectral', serif; font-size: 16px; }
+  .empty { padding: 70px 20px; text-align: center; color: var(--text-soft); font-family: 'Libre Franklin', sans-serif; font-weight: 700; font-size: 16px; }
 
-  /* Person view (unchanged) */
   .person-groups { display: flex; flex-direction: column; gap: 18px; padding: 4px 0; }
-  .person-card { background: var(--paper-raised); border-radius: 6px; box-shadow: var(--card-shadow); overflow: hidden; }
-  .person-card-head { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; background: var(--ink); color: var(--paper-raised); }
-  .person-name { font-family: 'Spectral', serif; font-weight: 600; font-size: 16px; }
-  .person-meta { font-family: 'IBM Plex Mono', monospace; font-size: 11px; opacity: 0.85; }
-  .person-warning { font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600; color: #F3C9C0; display: flex; align-items: center; gap: 5px; }
-  .clash-row { background: #F7EAE7; }
-  .clash-row:hover { background: #F3E0DB !important; }
-  .clash-flag { display: inline-flex; align-items: center; gap: 4px; font-size: 10.5px; font-weight: 600; color: var(--clash); font-family: 'IBM Plex Mono', monospace; }
+  .person-card { background: var(--bg); border: 1px solid var(--line); border-radius: 6px; box-shadow: var(--shadow); overflow: hidden; }
+  .person-card-head { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; background: var(--navy); }
+  .person-name { font-family: 'Libre Franklin', sans-serif; font-weight: 700; font-size: 16px; color: #fff; }
+  .person-meta { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: rgba(255,255,255,0.75); margin-top: 4px; }
+  .person-warning {
+    font-family: 'Inter', sans-serif; font-size: 11px; font-weight: 700; color: #fff;
+    display: flex; align-items: center; gap: 5px; background: rgba(200,16,46,0.35);
+    padding: 5px 10px; border-radius: 4px;
+  }
+  .clash-row { background: var(--clash-soft); }
+  .clash-row:hover { background: #F9DADD !important; }
+  .clash-flag { display: inline-flex; align-items: center; gap: 4px; font-size: 10px; font-weight: 700; color: var(--clash); font-family: 'IBM Plex Mono', monospace; }
   .person-table-scroll { overflow-x: auto; }
 
-  footer { margin-top: 18px; font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--ink-soft); line-height: 1.6; }
+  .cost-headline {
+    background: var(--navy); border-radius: 6px; padding: 22px 26px; margin-bottom: 22px;
+    display: flex; align-items: center; justify-content: space-between; box-shadow: var(--shadow);
+  }
+  .cost-headline .label { font-family: 'Inter', sans-serif; font-size: 11px; font-weight: 600; color: rgba(255,255,255,0.65); text-transform: uppercase; letter-spacing: 0.8px; }
+  .cost-headline .value {
+    font-family: 'IBM Plex Mono', monospace; font-weight: 600; font-size: 30px; color: #fff; margin-top: 4px;
+  }
+  .cost-headline .value.positive { color: #7FE0A8; }
+  .cost-headline .value.negative { color: #FF9E9E; }
+  .cost-headline .sub { font-family: 'Inter', sans-serif; font-size: 11.5px; color: rgba(255,255,255,0.6); margin-top: 6px; max-width: 340px; }
+
+  .cost-region-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; margin-bottom: 20px; }
+  .cost-region-card {
+    background: var(--bg); border: 1px solid var(--line); border-top: 3px solid var(--navy);
+    border-radius: 6px; box-shadow: var(--shadow); overflow: hidden;
+  }
+  .cost-region-head { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; cursor: pointer; transition: background 0.12s ease; }
+  .cost-region-head:hover { background: var(--bg-soft); }
+  .cost-region-card.open .cost-region-head { background: var(--bg-soft); }
+  .cost-region-name { font-family: 'Libre Franklin', sans-serif; font-weight: 700; font-size: 15px; color: var(--navy); display: flex; align-items: center; gap: 8px; }
+  .cost-region-total { font-family: 'IBM Plex Mono', monospace; font-weight: 600; font-size: 17px; color: var(--text); margin-top: 6px; }
+  .cost-region-delta { font-family: 'IBM Plex Mono', monospace; font-size: 12px; margin-top: 4px; }
+  .cost-region-delta.positive { color: #1E8A4C; }
+  .cost-region-delta.negative { color: var(--clash); }
+  .cost-region-delta.none { color: var(--text-faint); }
+  .cost-chevron { font-family: 'IBM Plex Mono', monospace; font-size: 15px; color: var(--accent); transition: transform 0.2s ease; }
+  .cost-region-card.open .cost-chevron { transform: rotate(90deg); }
+  .cost-region-body {
+    max-height: 0; opacity: 0; overflow: hidden; padding: 0 20px;
+    transition: max-height 0.28s ease, opacity 0.2s ease, padding 0.28s ease;
+  }
+  .cost-region-card.open .cost-region-body { max-height: 600px; opacity: 1; padding: 0 20px 16px; overflow-y: auto; }
+
+  .cost-note {
+    font-family: 'Inter', sans-serif; font-size: 11.5px; color: var(--text-soft); line-height: 1.6;
+    background: var(--bg-soft); border: 1px solid var(--line); border-radius: 6px; padding: 14px 18px;
+  }
+
+  footer {
+    margin-top: 22px; font-family: 'Inter', sans-serif; font-size: 11.5px; color: var(--text-faint);
+    line-height: 1.7; border-top: 1px solid var(--line); padding-top: 18px;
+  }
 </style>
 </head>
 <body>
 <div class="wrap">
   <header>
     <div>
-      <h1>2026 Gartner T&amp;E Forecast</h1>
-      <div class="subtitle" id="subtitle">loading…</div>
+      <h1>GPJ 2026 Gartner T&amp;E Forecast</h1>
+      <div class="subtitle" id="subtitle"><span class="live-dot"></span>loading…</div>
     </div>
   </header>
 
   <div class="mode-switch">
     <button class="mode-btn active" id="modeBrowse">Browse by region</button>
     <button class="mode-btn" id="modePerson">By person / clash check</button>
+    <button class="mode-btn" id="modeCost">Cost Summary</button>
   </div>
 
   <div id="browseView">
@@ -197,6 +292,19 @@ const PAGE_HTML = `<!DOCTYPE html>
     <div class="empty" id="personEmptyState" style="display:none;">No matching person — try a different name.</div>
   </div>
 
+  <div id="costView" style="display:none;">
+    <div class="cost-headline" id="costHeadline"></div>
+    <div class="cost-region-grid" id="costRegionGrid"></div>
+    <div class="cost-note">
+      Figures are pulled directly from the "Cost Summary" tab in the source sheet, which compares each
+      conference's actual 2025 spend to its 2026 forecast. Totals are shown in each region's native currency
+      as entered in the sheet (NA and LATAM are already in USD; APAC and JAPAN in AUD; India in INR; EMEA in EUR).
+      The small USD-equivalent delta lets you compare regions on the same basis even though the totals themselves
+      aren't converted. LATAM has no year-over-year comparison since most of its conferences don't yet have a
+      matching 2025 actual on record.
+    </div>
+  </div>
+
   <footer>
     Parsed from your uploaded 2026 Gartner T&amp;E Forecast workbook (NA, LATAM, EMEA, INDIA, APAC, JAPAN tabs).
     "Total Budget" is shown exactly as entered in the source sheet — note India's figures appear to be in a
@@ -213,6 +321,7 @@ const PAGE_HTML = `<!DOCTYPE html>
 let RECORDS = [];
 let REGIONS = [];
 let HOME_REGION = {};
+let COST_SUMMARY = null;
 
 const LIVE_DATA_URL = 'https://te-forecast-backend.vercel.app/api/te-forecast'; // <-- your live backend
 
@@ -224,9 +333,11 @@ async function loadLiveData() {
     const json = await res.json();
     RECORDS = json.records;
     HOME_REGION = json.homeRegion;
+    COST_SUMMARY = json.costSummary || null;
     REGIONS = ["NA","LATAM","EMEA","INDIA","APAC","JAPAN"].filter(r => RECORDS.some(rec => rec.region === r));
     if (!currentRegion) currentRegion = REGIONS[0];
     renderAll();
+    if (COST_SUMMARY) renderCostView();
   } catch (err) {
     subtitleEl.textContent = 'Could not load live data \\u2014 check the connection.';
     console.error(err);
@@ -257,7 +368,7 @@ const personGroups = document.getElementById('personGroups');
 const personResultCount = document.getElementById('personResultCount');
 const personEmptyState = document.getElementById('personEmptyState');
 
-subtitle.textContent = \`\${REGIONS.length} region sheets · \${RECORDS.length} assignments · \${new Set(RECORDS.map(r=>r.conference)).size} conferences\`;
+subtitle.innerHTML = \`<span class="live-dot"></span>\${REGIONS.length} region sheets · \${RECORDS.length} assignments · \${new Set(RECORDS.map(r=>r.conference)).size} conferences\`;
 
 function fmtDate(iso) {
   if (!iso) return '<span class="muted">—</span>';
@@ -273,13 +384,126 @@ function fmtBudget(n) { return (n === null || n === undefined) ? '<span class="m
 
 document.getElementById('modeBrowse').onclick = () => setMode('browse');
 document.getElementById('modePerson').onclick = () => setMode('person');
+document.getElementById('modeCost').onclick = () => setMode('cost');
 
 function setMode(mode) {
   document.getElementById('modeBrowse').classList.toggle('active', mode === 'browse');
   document.getElementById('modePerson').classList.toggle('active', mode === 'person');
+  document.getElementById('modeCost').classList.toggle('active', mode === 'cost');
   document.getElementById('browseView').style.display = mode === 'browse' ? 'block' : 'none';
   document.getElementById('personView').style.display = mode === 'person' ? 'block' : 'none';
+  document.getElementById('costView').style.display = mode === 'cost' ? 'block' : 'none';
   if (mode === 'person') renderPersonView();
+  if (mode === 'cost') renderCostView();
+}
+
+// Currency label per region, exactly as specified — not converted, just labeled.
+const CURRENCY_LABEL = { NA: 'US$', LATAM: 'US$', APAC: 'AUS$', JAPAN: 'AUS$', INDIA: 'INR', EMEA: '€' };
+
+function fmtMoney2(n, currencyLabel) {
+  if (n === null || n === undefined) return '<span class="muted">—</span>';
+  const formatted = n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return currencyLabel ? \`\${currencyLabel} \${formatted}\` : formatted;
+}
+
+function fmtDelta2(n, currencyLabel) {
+  if (n === null || n === undefined) return null;
+  const sign = n > 0 ? '+' : (n < 0 ? '\\u2212' : '');
+  const formatted = Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return \`\${sign}\${currencyLabel ? currencyLabel + ' ' : ''}\${formatted}\`;
+}
+
+let openCostRegions = new Set();
+
+function renderCostView() {
+  const headlineEl = document.getElementById('costHeadline');
+  const gridEl = document.getElementById('costRegionGrid');
+
+  if (!COST_SUMMARY || !COST_SUMMARY.blocks || COST_SUMMARY.blocks.length === 0) {
+    headlineEl.innerHTML = \`
+      <div>
+        <div class="label">Cost Summary</div>
+        <div class="value" style="font-size:16px;">No cost data was returned from the sheet.</div>
+        <div class="sub">Check that the "Cost Summary" tab still exists with that exact name, and that its rows follow the "Event (REGION)" block layout the parser expects.</div>
+      </div>
+    \`;
+    gridEl.innerHTML = "";
+    return;
+  }
+
+  const totalsPresent = COST_SUMMARY.blocks.some(b => b.total !== null && b.total !== undefined);
+
+  const overall = COST_SUMMARY.overallSaving;
+  const overallKnown = overall !== null && overall !== undefined;
+  const overallClass = overallKnown ? (overall > 0 ? 'positive' : (overall < 0 ? 'negative' : '')) : '';
+  const overallLabel = !overallKnown ? 'YoY Change So Far' : (overall > 0 ? 'YoY Savings So Far (USD-equivalent)' : 'YoY Cost Increase So Far (USD-equivalent)');
+  const overallValue = overallKnown ? fmtDelta2(overall, 'US$') : 'Not available';
+
+  headlineEl.innerHTML = \`
+    <div>
+      <div class="label">\${overallLabel}</div>
+      <div class="value \${overallClass}">\${overallValue}</div>
+      <div class="sub">Combines each region's year-over-year change, converted to a common USD basis so regions in different currencies can be compared on one line.
+      \${!totalsPresent ? ' No region totals parsed from the sheet — the "Total" row label or column layout may differ from what the parser expects.' : ''}</div>
+    </div>
+  \`;
+
+  gridEl.innerHTML = "";
+  COST_SUMMARY.blocks.forEach(block => {
+    const currencyLabel = CURRENCY_LABEL[block.region] || block.currency || '';
+    const isOpen = openCostRegions.has(block.region);
+
+    // prefer the region's own native delta when it's already USD (NA); otherwise
+    // fall back to the USD-equivalent delta the sheet computed for foreign-currency regions.
+    const displayDelta = (block.region === 'NA' || block.region === 'LATAM')
+      ? block.nativeDelta
+      : block.usdDelta;
+    const deltaClass = displayDelta === null || displayDelta === undefined ? 'none' : (displayDelta > 0 ? 'positive' : (displayDelta < 0 ? 'negative' : 'none'));
+    const deltaText = displayDelta === null || displayDelta === undefined
+      ? 'No 2025 comparison available'
+      : \`\${fmtDelta2(displayDelta, 'US$')} YoY\${block.region !== 'NA' && block.region !== 'LATAM' ? ' (USD-equiv.)' : ''}\`;
+
+    const card = document.createElement('div');
+    card.className = 'cost-region-card' + (isOpen ? ' open' : '');
+
+    const head = document.createElement('div');
+    head.className = 'cost-region-head';
+    head.innerHTML = \`
+      <div>
+        <div class="cost-region-name">\${block.region}</div>
+        <div class="cost-region-total">\${fmtMoney2(block.total, currencyLabel)}</div>
+        <div class="cost-region-delta \${deltaClass}">\${deltaText}</div>
+      </div>
+      <span class="cost-chevron">›</span>
+    \`;
+    head.onclick = () => {
+      if (openCostRegions.has(block.region)) openCostRegions.delete(block.region);
+      else openCostRegions.add(block.region);
+      renderCostView();
+    };
+    card.appendChild(head);
+
+    const body = document.createElement('div');
+    body.className = 'cost-region-body';
+    const table = document.createElement('table');
+    table.innerHTML = \`<thead><tr><th>Conference</th><th>2025 Actual</th><th>2026 Actual</th><th>Delta</th></tr></thead>\`;
+    const tbody = document.createElement('tbody');
+    block.events.forEach(ev => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = \`
+        <td>\${ev.code}</td>
+        <td>\${fmtMoney2(ev.price2025, currencyLabel)}</td>
+        <td>\${fmtMoney2(ev.price2026, currencyLabel)}</td>
+        <td>\${ev.delta === null || ev.delta === undefined ? '<span class="muted">—</span>' : fmtDelta2(ev.delta, currencyLabel)}</td>
+      \`;
+      tbody.appendChild(tr);
+    });
+    table.appendChild(tbody);
+    body.appendChild(table);
+    card.appendChild(body);
+
+    gridEl.appendChild(card);
+  });
 }
 
 function renderTabs() {
@@ -297,7 +521,7 @@ function renderTabs() {
 function renderChips() {
   chipsEl.innerHTML = "";
   const label = document.createElement('span');
-  label.style.cssText = "font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--ink-soft);align-self:center;margin-right:2px;";
+  label.style.cssText = "font-family:'Inter',sans-serif;font-size:11px;font-weight:600;color:var(--text-faint);align-self:center;margin-right:2px;";
   label.textContent = "Search in:";
   chipsEl.appendChild(label);
   SEARCHABLE.forEach(field => {
@@ -336,7 +560,7 @@ function renderRegionSummary() {
 function renderSortRow() {
   sortRowEl.innerHTML = "";
   const label = document.createElement('span');
-  label.style.cssText = "font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--ink-soft);align-self:center;margin-right:2px;";
+  label.style.cssText = "font-family:'Inter',sans-serif;font-size:11px;font-weight:600;color:var(--text-faint);align-self:center;margin-right:2px;";
   label.textContent = "Sort:";
   sortRowEl.appendChild(label);
   [["date","Event date"],["name","Name"],["budget","Team budget"]].forEach(([key,lbl]) => {
@@ -361,6 +585,14 @@ function rolePriority(role) {
 function findRegLead(people) {
   const lead = people.find(p => (p.role || '').toLowerCase().includes('reg lead'));
   return lead ? lead.person : null;
+}
+
+function extractConfCode(conference) {
+  const m = conference && conference.match(/\\(([^)]+)\\)\\s*$/);
+  return m ? m[1] : null;
+}
+function stripConfCode(conference) {
+  return conference ? conference.replace(/\\s*\\([^)]+\\)\\s*$/, '') : conference;
 }
 
 function highlight(text, term) {
@@ -432,18 +664,24 @@ function renderConfList() {
 
     const budgetTotal = c.people.reduce((s,p)=>s+(p.totalBudget||0),0);
     const regLead = findRegLead(c.people);
+    const confCode = extractConfCode(c.conference);
+    const confName = stripConfCode(c.conference);
 
     const head = document.createElement('div');
     head.className = 'conf-header';
     head.innerHTML = \`
       <span class="chevron">›</span>
       <div class="conf-main">
-        <div class="conf-title">\${highlight(c.conference, activeFields.has("conference") ? term : "")}\${isPast ? '<span class="past-badge">Completed</span>' : ''}</div>
+        <div class="conf-title-row">
+          <span class="conf-title">\${highlight(confName, activeFields.has("conference") ? term : "")}</span>
+          \${confCode ? \`<span class="conf-code">\${confCode}</span>\` : ''}
+          \${isPast ? '<span class="past-badge">Completed</span>' : ''}
+        </div>
         \${c.venue ? \`<div class="conf-venue">\${highlight(c.venue, activeFields.has("venue") ? term : "")}</div>\` : ''}
-        \${regLead ? \`<div class="conf-reglead">Reg Lead: \${regLead}</div>\` : ''}
+        \${regLead ? \`<div class="conf-reglead"><b>Reg Lead</b> \${regLead}</div>\` : ''}
       </div>
-      <div class="conf-meta">\${c.people.length} on team<br>\${budgetTotal.toLocaleString('en-US')} total</div>
-      <div class="conf-dates"><span class="label">Event</span>\${fmtDate(c.eventStart)} – \${fmtDateFull(c.eventEnd)}</div>
+      <div class="conf-meta"><b>\${c.people.length}</b> on team<br>\${budgetTotal.toLocaleString('en-US')} total</div>
+      <div class="conf-dates"><span class="label">Event</span>\${fmtDate(c.eventStart)}<span class="dash">–</span>\${fmtDateFull(c.eventEnd)}</div>
     \`;
     head.onclick = () => {
       if (openConfs.has(key)) openConfs.delete(key); else openConfs.add(key);
@@ -506,7 +744,9 @@ function computeClashes(records) {
 
 function renderPersonView() {
   const term = personSearchInput.value.trim().toLowerCase();
-  const people = [...new Set(RECORDS.map(r => r.person).filter(Boolean))].sort();
+  const counts = {};
+  RECORDS.forEach(r => { if (r.person) counts[r.person] = (counts[r.person] || 0) + 1; });
+  const people = Object.keys(counts).filter(p => counts[p] > 3).sort();
   const matched = term ? people.filter(p => p.toLowerCase().includes(term)) : people;
 
   personGroups.innerHTML = "";
@@ -560,7 +800,7 @@ function renderPersonView() {
   });
 
   personEmptyState.style.display = matched.length === 0 ? 'block' : 'none';
-  personResultCount.textContent = \`\${matched.length} of \${people.length} people\` + (totalClashCount ? \` · \${totalClashCount} with overlapping trips\` : '');
+  personResultCount.textContent = \`\${matched.length} of \${people.length} people with 4+ conferences\` + (totalClashCount ? \` · \${totalClashCount} with overlapping trips\` : '');
 }
 
 personSearchInput.addEventListener('input', renderPersonView);
@@ -574,8 +814,13 @@ setInterval(loadLiveData, 5 * 60 * 1000);
 `;
 
 module.exports = function handler(req, res) {
-  const auth = req.headers.authorization;
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
 
+  const auth = req.headers.authorization;
   const expectedUser = process.env.SITE_USER;
   const expectedPass = process.env.SITE_PASSWORD;
 
