@@ -95,16 +95,15 @@ const PAGE_HTML = `<!DOCTYPE html>
   }
   .stat-label { font-family: 'Inter', sans-serif; font-size: 10.5px; color: var(--text-soft); text-transform: uppercase; letter-spacing: 0.8px; margin-top: 8px; font-weight: 600; }
 
-  .tabs { display: flex; gap: 2px; padding-left: 2px; flex-wrap: wrap; border-bottom: 1px solid var(--line); }
+  .tabs { display: flex; gap: 10px; padding-left: 2px; flex-wrap: wrap; margin-bottom: 6px; }
   .tab {
-    font-family: 'Libre Franklin', sans-serif; font-weight: 700; font-size: 13px; letter-spacing: 0.3px;
-    padding: 12px 18px; background: transparent; color: var(--text-soft); border: none;
-    border-bottom: 3px solid transparent; cursor: pointer; position: relative; bottom: -1px; transition: all 0.15s ease;
-    text-transform: uppercase;
+    font-family: 'Libre Franklin', sans-serif; font-weight: 800; font-size: 16px; letter-spacing: 0.2px;
+    padding: 15px 28px; background: var(--bg-soft); color: var(--text-soft); border: 1.5px solid var(--line);
+    border-radius: 8px; cursor: pointer; transition: all 0.15s ease;
   }
-  .tab .count { font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; opacity: 0.7; margin-left: 6px; font-weight: 400; }
-  .tab.active { color: var(--navy); border-bottom-color: var(--accent); }
-  .tab:not(.active):hover { color: var(--navy); }
+  .tab .count { font-family: 'IBM Plex Mono', monospace; font-size: 12.5px; opacity: 0.75; margin-left: 8px; font-weight: 500; }
+  .tab.active { background: var(--navy); color: #fff; border-color: var(--navy); box-shadow: var(--shadow); }
+  .tab:not(.active):hover { background: #E9EDF3; color: var(--navy); border-color: #C9D2DE; }
 
   .sort-row { display: flex; gap: 8px; padding: 14px 18px 4px; align-items: center; }
   .sort-btn {
@@ -114,21 +113,19 @@ const PAGE_HTML = `<!DOCTYPE html>
   .sort-btn.active { border-color: var(--navy); color: var(--navy); font-weight: 700; }
 
   .panel {
-    background: var(--bg); border: 1px solid var(--line); border-top: none;
-    border-radius: 0 0 6px 6px; box-shadow: var(--shadow); overflow: hidden;
+    background: transparent; border: none; box-shadow: none; overflow: visible;
   }
 
-  .conf-list { display: flex; flex-direction: column; }
-  .conf-item { border-bottom: 1px solid var(--line); border-left: 3px solid transparent; }
-  .conf-item:last-child { border-bottom: none; }
-  .conf-item.open { border-left-color: var(--accent); }
+  .conf-list { display: flex; flex-direction: column; gap: 8px; }
+  .conf-item { }
 
   .conf-header {
-    display: flex; align-items: center; gap: 18px; padding: 17px 22px; cursor: pointer;
-    transition: background 0.12s ease;
+    display: flex; align-items: center; gap: 18px; padding: 16px 20px; cursor: pointer;
+    transition: background 0.12s ease; background: var(--bg); border: 1px solid var(--line);
+    border-radius: 6px; box-shadow: var(--shadow);
   }
   .conf-header:hover { background: var(--bg-soft); }
-  .conf-item.open .conf-header { background: var(--bg-soft); }
+  .conf-item.open .conf-header { background: var(--bg-soft); border-color: var(--navy); }
 
   .chevron {
     font-family: 'IBM Plex Mono', monospace; font-size: 15px; color: var(--accent); width: 14px; flex-shrink: 0;
@@ -170,10 +167,10 @@ const PAGE_HTML = `<!DOCTYPE html>
   .conf-meta b { color: var(--navy); }
 
   .conf-body {
-    max-height: 0; opacity: 0; overflow: hidden; padding: 0 22px 0 58px;
+    max-height: 0; opacity: 0; overflow: hidden; padding: 0 20px;
     transition: max-height 0.28s ease, opacity 0.2s ease, padding 0.28s ease;
   }
-  .conf-item.open .conf-body { max-height: 900px; opacity: 1; padding: 0 22px 18px 58px; }
+  .conf-item.open .conf-body { max-height: 900px; opacity: 1; padding: 10px 20px 18px; }
 
   table { width: 100%; border-collapse: collapse; font-family: 'IBM Plex Mono', monospace; font-size: 12px; }
   thead th {
