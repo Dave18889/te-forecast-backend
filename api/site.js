@@ -509,6 +509,8 @@ function renderCostView() {
       tbody.appendChild(tr);
     });
     const computedTotal2025 = block.events.reduce((s,ev) => s + (ev.price2025 || 0), 0);
+    const computedTotal2026 = block.events.reduce((s,ev) => s + (ev.price2026 || 0), 0);
+    const anyPrice2026Present = block.events.some(ev => ev.price2026 !== null && ev.price2026 !== undefined);
     const computedDelta = block.events.reduce((s,ev) => s + (ev.delta !== null && ev.delta !== undefined ? ev.delta : 0), 0);
     const anyDeltaPresent = block.events.some(ev => ev.delta !== null && ev.delta !== undefined);
 
@@ -518,7 +520,7 @@ function renderCostView() {
     totalsTr.innerHTML = \`
       <td><b>Total</b></td>
       <td><b>\${fmtMoney2(computedTotal2025, currencyLabel)}</b></td>
-      <td></td>
+      <td><b>\${anyPrice2026Present ? fmtMoney2(computedTotal2026, currencyLabel) : '<span class="muted">—</span>'}</b></td>
       <td><b>\${anyDeltaPresent ? fmtDelta2(computedDelta, currencyLabel) : '<span class="muted">—</span>'}</b></td>
     \`;
     tbody.appendChild(totalsTr);
