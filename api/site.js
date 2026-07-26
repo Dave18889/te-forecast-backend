@@ -95,10 +95,11 @@ const PAGE_HTML = `<!DOCTYPE html>
   }
   .stat-label { font-family: 'Inter', sans-serif; font-size: 10.5px; color: var(--text-soft); text-transform: uppercase; letter-spacing: 0.8px; margin-top: 8px; font-weight: 600; }
 
-  .tabs { display: flex; gap: 10px; padding-left: 2px; flex-wrap: wrap; margin-bottom: 6px; }
+  .tabs { display: flex; gap: 10px; margin-bottom: 6px; }
   .tab {
+    flex: 1; text-align: center;
     font-family: 'Libre Franklin', sans-serif; font-weight: 800; font-size: 16px; letter-spacing: 0.2px;
-    padding: 15px 28px; background: var(--bg-soft); color: var(--text-soft); border: 1.5px solid var(--line);
+    padding: 15px 20px; background: var(--bg-soft); color: var(--text-soft); border: 1.5px solid var(--line);
     border-radius: 8px; cursor: pointer; transition: all 0.15s ease;
   }
   .tab .count { font-family: 'IBM Plex Mono', monospace; font-size: 12.5px; opacity: 0.75; margin-left: 8px; font-weight: 500; }
