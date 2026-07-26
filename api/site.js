@@ -463,15 +463,19 @@ function renderCostView() {
     const currencyLabel = CURRENCY_LABEL[block.region] || block.currency || '';
     const isOpen = openCostRegions.has(block.region);
 
-    // prefer the region's own native delta when it's already USD (NA); otherwise
-    // fall back to the USD-equivalent delta the sheet computed for foreign-currency regions.
-    const displayDelta = (block.region === 'NA' || block.region === 'LATAM')
-      ? block.nativeDelta
-      : block.usdDelta;
-    const deltaClass = displayDelta === null || displayDelta === undefined ? 'none' : (displayDelta > 0 ? 'positive' : (displayDelta < 0 ? 'negative' : 'none'));
-    const deltaText = displayDelta === null || displayDelta === undefined
+    // Compute totals directly from the visible per-conference rows rather than
+    // trusting the sheet's own "Total" row parsing, which has proven unreliable
+    // for regions where 2025/2026 prices sit in mismatched currency columns.
+    const computedTotal2025 = block.events.reduce((s,ev) => s + (ev.price2025 || 0), 0);
+    const computedTotal2026 = block.events.reduce((s,ev) => s + (ev.price2026 || 0), 0);
+    const anyPrice2026Present = block.events.some(ev => ev.price2026 !== null && ev.price2026 !== undefined);
+    const computedDelta = block.events.reduce((s,ev) => s + (ev.delta !== null && ev.delta !== undefined ? ev.delta : 0), 0);
+    const anyDeltaPresent = block.events.some(ev => ev.delta !== null && ev.delta !== undefined);
+
+    const deltaClass = !anyDeltaPresent ? 'none' : (computedDelta > 0 ? 'positive' : (computedDelta < 0 ? 'negative' : 'none'));
+    const deltaText = !anyDeltaPresent
       ? 'No 2025 comparison available'
-      : \`\${fmtDelta2(displayDelta, 'US$')} YoY\${block.region !== 'NA' && block.region !== 'LATAM' ? ' (USD-equiv.)' : ''}\`;
+      : \`\${fmtDelta2(computedDelta, currencyLabel)} YoY\`;
 
     const card = document.createElement('div');
     card.className = 'cost-region-card' + (isOpen ? ' open' : '');
@@ -481,7 +485,7 @@ function renderCostView() {
     head.innerHTML = \`
       <div>
         <div class="cost-region-name">\${block.region}</div>
-        <div class="cost-region-total">\${fmtMoney2(block.total, currencyLabel)}</div>
+        <div class="cost-region-total">\${fmtMoney2(computedTotal2025, currencyLabel)}</div>
         <div class="cost-region-delta \${deltaClass}">\${deltaText}</div>
       </div>
       <span class="cost-chevron">›</span>
@@ -508,11 +512,6 @@ function renderCostView() {
       \`;
       tbody.appendChild(tr);
     });
-    const computedTotal2025 = block.events.reduce((s,ev) => s + (ev.price2025 || 0), 0);
-    const computedTotal2026 = block.events.reduce((s,ev) => s + (ev.price2026 || 0), 0);
-    const anyPrice2026Present = block.events.some(ev => ev.price2026 !== null && ev.price2026 !== undefined);
-    const computedDelta = block.events.reduce((s,ev) => s + (ev.delta !== null && ev.delta !== undefined ? ev.delta : 0), 0);
-    const anyDeltaPresent = block.events.some(ev => ev.delta !== null && ev.delta !== undefined);
 
     const totalsTr = document.createElement('tr');
     totalsTr.style.borderTop = '2px solid var(--navy)';
