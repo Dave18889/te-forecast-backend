@@ -298,7 +298,9 @@ const PAGE_HTML = `<!DOCTYPE html>
     <div class="cost-note">
       Figures are pulled directly from the "Cost Summary" tab in the source sheet, which compares each
       conference's actual 2025 spend to its 2026 forecast. Totals are shown in each region's native currency
-      as entered in the sheet (NA and LATAM are already in USD; APAC and JAPAN in AUD; India in INR; EMEA in EUR).
+      as entered in the sheet (NA and LATAM in $; APAC and JAPAN in AUS$; India in INR; EMEA in €). Note that
+      Team Budget figures elsewhere on the site (Browse by region, By Person) use a different source dataset —
+      EMEA's Team Budget figures are in £ (GBP), not €, confirmed against the client's approved 2026 peg rates.
       The small USD-equivalent delta lets you compare regions on the same basis even though the totals themselves
       aren't converted. LATAM has no year-over-year comparison since most of its conferences don't yet have a
       matching 2025 actual on record.
@@ -380,7 +382,11 @@ function fmtDateFull(iso) {
   const d = new Date(iso + 'T00:00:00');
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
-function fmtBudget(n) { return (n === null || n === undefined) ? '<span class="muted">—</span>' : n.toLocaleString('en-US'); }
+function fmtBudget(n, currencyLabel) {
+  if (n === null || n === undefined) return '<span class="muted">—</span>';
+  const formatted = n.toLocaleString('en-US');
+  return currencyLabel ? \`\${currencyLabel} \${formatted}\` : formatted;
+}
 
 document.getElementById('modeBrowse').onclick = () => setMode('browse');
 document.getElementById('modePerson').onclick = () => setMode('person');
@@ -398,7 +404,11 @@ function setMode(mode) {
 }
 
 // Currency label per region, exactly as specified — not converted, just labeled.
-const CURRENCY_LABEL = { NA: 'US$', LATAM: 'US$', APAC: 'AUS$', JAPAN: 'AUS$', INDIA: 'INR', EMEA: '€' };
+const CURRENCY_LABEL = { NA: '$', LATAM: '$', APAC: 'AUS$', JAPAN: 'AUS$', INDIA: 'INR', EMEA: '€' };
+// Team Budget figures (Browse by region / Person view) come from a different
+// source dataset than the Cost Summary tab, and EMEA's figures there are in
+// GBP, not EUR — confirmed against the client's approved 2026 peg rates.
+const BUDGET_CURRENCY_LABEL = { NA: '$', LATAM: '$', APAC: 'AUS$', JAPAN: 'AUS$', INDIA: 'INR', EMEA: '£' };
 
 function fmtMoney2(n, currencyLabel) {
   if (n === null || n === undefined) return '<span class="muted">—</span>';
@@ -498,6 +508,16 @@ function renderCostView() {
       \`;
       tbody.appendChild(tr);
     });
+    const totalsTr = document.createElement('tr');
+    totalsTr.style.borderTop = '2px solid var(--navy)';
+    totalsTr.style.fontWeight = '700';
+    totalsTr.innerHTML = \`
+      <td><b>Total</b></td>
+      <td></td>
+      <td><b>\${fmtMoney2(block.total, currencyLabel)}</b></td>
+      <td><b>\${block.nativeDelta === null || block.nativeDelta === undefined ? '<span class="muted">—</span>' : fmtDelta2(block.nativeDelta, currencyLabel)}</b></td>
+    \`;
+    tbody.appendChild(totalsTr);
     table.appendChild(tbody);
     body.appendChild(table);
     card.appendChild(body);
@@ -543,7 +563,7 @@ function renderRegionSummary() {
 
   regionSummaryEl.innerHTML = \`
     <div class="stat-card">
-      <div class="stat-value">\${totalCost.toLocaleString('en-US')}</div>
+      <div class="stat-value">\${BUDGET_CURRENCY_LABEL[currentRegion] || ''} \${totalCost.toLocaleString('en-US')}</div>
       <div class="stat-label">Total forecasted cost</div>
     </div>
     <div class="stat-card">
@@ -680,7 +700,7 @@ function renderConfList() {
         \${c.venue ? \`<div class="conf-venue">\${highlight(c.venue, activeFields.has("venue") ? term : "")}</div>\` : ''}
         \${regLead ? \`<div class="conf-reglead"><b>Reg Lead</b> \${regLead}</div>\` : ''}
       </div>
-      <div class="conf-meta"><b>\${c.people.length}</b> on team<br>\${budgetTotal.toLocaleString('en-US')} total</div>
+      <div class="conf-meta"><b>\${c.people.length}</b> on team<br>\${BUDGET_CURRENCY_LABEL[c.region] || ''} \${budgetTotal.toLocaleString('en-US')} total</div>
       <div class="conf-dates"><span class="label">Event</span>\${fmtDate(c.eventStart)}<span class="dash">–</span>\${fmtDateFull(c.eventEnd)}</div>
     \`;
     head.onclick = () => {
@@ -708,7 +728,7 @@ function renderConfList() {
         <td><span class="role-pill">\${highlight(p.role, activeFields.has("role") ? term : "")}</span></td>
         <td>\${fmtDateFull(p.inDate)}</td>
         <td>\${fmtDateFull(p.outDate)}</td>
-        <td>\${fmtBudget(p.totalBudget)}</td>
+        <td>\${fmtBudget(p.totalBudget, BUDGET_CURRENCY_LABEL[c.region])}</td>
       \`;
       tbody.appendChild(tr);
     });
@@ -760,6 +780,11 @@ function renderPersonView() {
     if (clashSet.size > 0) totalClashCount++;
 
     const budgetTotal = records.reduce((s,r)=> s + (r.totalBudget||0), 0);
+    const distinctRegions = new Set(records.map(r => r.region));
+    const aggCurrency = distinctRegions.size === 1 ? (BUDGET_CURRENCY_LABEL[records[0].region] || '') : null;
+    const budgetTotalText = aggCurrency
+      ? \`\${aggCurrency} \${budgetTotal.toLocaleString('en-US')} total budget\`
+      : \`\${budgetTotal.toLocaleString('en-US')} total budget (mixed currencies — see rows below)\`;
 
     const card = document.createElement('div');
     card.className = 'person-card';
@@ -769,7 +794,7 @@ function renderPersonView() {
     head.innerHTML = \`
       <div>
         <div class="person-name">\${person}</div>
-        <div class="person-meta">\${records.length} conference\${records.length === 1 ? '' : 's'} assigned · \${budgetTotal.toLocaleString('en-US')} total budget</div>
+        <div class="person-meta">\${records.length} conference\${records.length === 1 ? '' : 's'} assigned · \${budgetTotalText}</div>
       </div>
       \${clashSet.size > 0 ? \`<div class="person-warning">⚠ \${clashSet.size} overlapping trip\${clashSet.size===1?'':'s'}</div>\` : ''}
     \`;
@@ -789,7 +814,7 @@ function renderPersonView() {
         <td><span class="role-pill">\${r.role}</span></td>
         <td>\${fmtDateFull(r.inDate)}</td>
         <td>\${fmtDateFull(r.outDate)}</td>
-        <td>\${fmtBudget(r.totalBudget)}</td>
+        <td>\${fmtBudget(r.totalBudget, BUDGET_CURRENCY_LABEL[r.region])}</td>
       \`;
       tbody.appendChild(tr);
     });
