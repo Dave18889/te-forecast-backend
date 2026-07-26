@@ -24,6 +24,8 @@ const PAGE_HTML = `<!DOCTYPE html>
     --clash: #C8102E;
     --clash-soft: #FCEAEC;
     --gold: #A67C27;
+    --green: #1E8A4C;
+    --green-soft: #E5F4EA;
     --gold-soft: #F7F0E2;
     --shadow: 0 2px 10px rgba(0,40,86,0.08);
   }
@@ -193,16 +195,28 @@ const PAGE_HTML = `<!DOCTYPE html>
 
   .empty { padding: 70px 20px; text-align: center; color: var(--text-soft); font-family: 'Libre Franklin', sans-serif; font-weight: 700; font-size: 16px; }
 
-  .person-groups { display: flex; flex-direction: column; gap: 18px; padding: 4px 0; }
-  .person-card { background: var(--bg); border: 1px solid var(--line); border-radius: 6px; box-shadow: var(--shadow); overflow: hidden; }
-  .person-card-head { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; background: var(--navy); }
-  .person-name { font-family: 'Libre Franklin', sans-serif; font-weight: 700; font-size: 16px; color: #fff; }
-  .person-meta { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: rgba(255,255,255,0.75); margin-top: 4px; }
-  .person-warning {
-    font-family: 'Inter', sans-serif; font-size: 11px; font-weight: 700; color: #fff;
-    display: flex; align-items: center; gap: 5px; background: rgba(200,16,46,0.35);
-    padding: 5px 10px; border-radius: 4px;
+  .person-groups { display: flex; flex-direction: column; gap: 8px; padding: 4px 0; }
+  .person-item { }
+  .person-header {
+    display: flex; align-items: center; gap: 14px; padding: 15px 20px; cursor: pointer;
+    transition: background 0.12s ease; background: var(--bg); border: 1px solid var(--line); border-radius: 6px;
+    box-shadow: var(--shadow);
   }
+  .person-header:hover { background: var(--bg-soft); }
+  .person-item.open .person-header { background: var(--bg-soft); border-color: var(--navy); }
+  .person-item.has-clash .person-header { border-left: 3px solid var(--accent); }
+  .person-chevron { font-family: 'IBM Plex Mono', monospace; font-size: 15px; color: var(--accent); width: 14px; flex-shrink: 0; transition: transform 0.2s ease; }
+  .person-item.open .person-chevron { transform: rotate(90deg); }
+  .person-name { font-family: 'Libre Franklin', sans-serif; font-weight: 700; font-size: 15px; color: var(--navy); flex: 1.4; }
+  .person-meta { font-family: 'IBM Plex Mono', monospace; font-size: 11.5px; color: var(--text-soft); flex: 1; }
+  .clash-status { font-family: 'Inter', sans-serif; font-size: 11.5px; font-weight: 700; padding: 5px 12px; border-radius: 20px; white-space: nowrap; }
+  .clash-status.clear { background: var(--green-soft); color: var(--green); }
+  .clash-status.warn { background: var(--clash-soft); color: var(--accent); }
+  .person-body {
+    max-height: 0; opacity: 0; overflow: hidden; padding: 0 20px;
+    transition: max-height 0.28s ease, opacity 0.2s ease, padding 0.28s ease;
+  }
+  .person-item.open .person-body { max-height: 700px; opacity: 1; padding: 10px 20px 16px; overflow-y: auto; }
   .clash-row { background: var(--clash-soft); }
   .clash-row:hover { background: #F9DADD !important; }
   .clash-flag { display: inline-flex; align-items: center; gap: 4px; font-size: 10px; font-weight: 700; color: var(--clash); font-family: 'IBM Plex Mono', monospace; }
@@ -767,6 +781,8 @@ function computeClashes(records) {
   return clashSet;
 }
 
+let openPersons = new Set();
+
 function renderPersonView() {
   const term = personSearchInput.value.trim().toLowerCase();
   const counts = {};
@@ -782,29 +798,37 @@ function renderPersonView() {
       .slice()
       .sort((a,b) => (a.inDate||'').localeCompare(b.inDate||''));
     const clashSet = computeClashes(records);
-    if (clashSet.size > 0) totalClashCount++;
+    const hasClash = clashSet.size > 0;
+    if (hasClash) totalClashCount++;
+    const isOpen = openPersons.has(person);
 
     const budgetTotal = records.reduce((s,r)=> s + (r.totalBudget||0), 0);
     const distinctRegions = new Set(records.map(r => r.region));
     const aggCurrency = distinctRegions.size === 1 ? (BUDGET_CURRENCY_LABEL[records[0].region] || '') : null;
     const budgetTotalText = aggCurrency
-      ? \`\${aggCurrency} \${budgetTotal.toLocaleString('en-US')} total budget\`
-      : \`\${budgetTotal.toLocaleString('en-US')} total budget (mixed currencies — see rows below)\`;
+      ? \`\${aggCurrency} \${budgetTotal.toLocaleString('en-US')}\`
+      : \`\${budgetTotal.toLocaleString('en-US')} (mixed currencies)\`;
 
-    const card = document.createElement('div');
-    card.className = 'person-card';
+    const item = document.createElement('div');
+    item.className = 'person-item' + (isOpen ? ' open' : '') + (hasClash ? ' has-clash' : '');
 
-    const head = document.createElement('div');
-    head.className = 'person-card-head';
-    head.innerHTML = \`
-      <div>
-        <div class="person-name">\${person}</div>
-        <div class="person-meta">\${records.length} conference\${records.length === 1 ? '' : 's'} assigned · \${budgetTotalText}</div>
-      </div>
-      \${clashSet.size > 0 ? \`<div class="person-warning">⚠ \${clashSet.size} overlapping trip\${clashSet.size===1?'':'s'}</div>\` : ''}
+    const header = document.createElement('div');
+    header.className = 'person-header';
+    header.innerHTML = \`
+      <span class="person-chevron">›</span>
+      <div class="person-name">\${person}</div>
+      <div class="person-meta">\${records.length} conference\${records.length === 1 ? '' : 's'} · \${budgetTotalText} total</div>
+      <div class="clash-status \${hasClash ? 'warn' : 'clear'}">\${hasClash ? \`⚠ \${clashSet.size} overlapping trip\${clashSet.size===1?'':'s'}\` : '✓ No clashes'}</div>
     \`;
-    card.appendChild(head);
+    header.onclick = () => {
+      if (openPersons.has(person)) openPersons.delete(person);
+      else openPersons.add(person);
+      renderPersonView();
+    };
+    item.appendChild(header);
 
+    const body = document.createElement('div');
+    body.className = 'person-body';
     const tableWrap = document.createElement('div');
     tableWrap.className = 'person-table-scroll';
     const table = document.createElement('table');
@@ -825,8 +849,10 @@ function renderPersonView() {
     });
     table.appendChild(tbody);
     tableWrap.appendChild(table);
-    card.appendChild(tableWrap);
-    personGroups.appendChild(card);
+    body.appendChild(tableWrap);
+    item.appendChild(body);
+
+    personGroups.appendChild(item);
   });
 
   personEmptyState.style.display = matched.length === 0 ? 'block' : 'none';
