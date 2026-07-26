@@ -1,12 +1,11 @@
 // Vercel serverless function: /api/te-forecast
 //
 // Pulls the six region tabs (NA, LATAM, EMEA, INDIA, APAC, JAPAN) plus the
-// "Team View" and "Cost Summary" tabs from the live Google Sheet, parses
-// the repeating conference blocks the same way the one-off Python
-// extraction did, and returns clean JSON:
-// { records: [...], homeRegion: {...}, costSummary: {...}, fetchedAt }
+// "Team View" tab from the live Google Sheet, parses the repeating
+// conference blocks the same way the one-off Python extraction did, and
+// returns clean JSON: { records: [...], homeRegion: {...}, fetchedAt }
 //
-// SETUP:
+// SETUP — see README.md for full steps:
 //   1. Create a Google Cloud service account + JSON key.
 //   2. Share the Google Sheet with the service account's email (Viewer).
 //   3. Set env vars in Vercel:
@@ -36,9 +35,14 @@ function isBlankRow(row) {
   return !row || row.every(c => c === undefined || c === null || c === '');
 }
 
+// Google Sheets API returns dates as either serial numbers or formatted
+// strings depending on how the range is fetched. We fetch with
+// valueRenderOption FORMATTED_VALUE off (UNFORMATTED_VALUE) and
+// dateTimeRenderOption SERIAL_NUMBER so dates arrive as day-count numbers,
+// matching how Excel/Sheets store them internally (epoch 1899-12-30).
 function serialToISO(serial) {
   if (typeof serial !== 'number') return null;
-  const ms = Math.round((serial - 25569) * 86400 * 1000);
+  const ms = Math.round((serial - 25569) * 86400 * 1000); // 25569 = days between 1899-12-30 and 1970-01-01
   return new Date(ms).toISOString().slice(0, 10);
 }
 
@@ -94,7 +98,7 @@ function parseRegionSheet(region, rows) {
     const arrivalEmpty = arrivalVal === undefined || arrivalVal === null || arrivalVal === '';
     const budgetPresent = typeof budgetVal === 'number';
 
-    if (arrivalEmpty && budgetPresent) { i++; continue; }
+    if (arrivalEmpty && budgetPresent) { i++; continue; } // totals row, skip
     if (!currentConf || roleVal === undefined || roleVal === null || roleVal === '') { i++; continue; }
 
     const depVal = idxDep !== undefined ? row[idxDep] : undefined;
@@ -118,6 +122,7 @@ function parseRegionSheet(region, rows) {
 }
 
 function parseTeamViewHomeRegion(rows) {
+  // rows[0] is the header: NAME, REGION, CONFERENCE, ROLE, IN DATE, OUT DATE, DAYS
   const counts = {};
   for (let i = 1; i < rows.length; i++) {
     const row = rows[i];
@@ -177,7 +182,7 @@ function parseCostSummary(rows) {
       current.total = parseMoney(row[1]);
       current.nativeDelta = typeof row[3] === 'number' ? row[3] : null;
       const nrow = rows[i + 1] || [];
-      const restEmpty = [nrow[0], nrow[1], nrow[2]].every(v => v === null || v === undefined);
+      const restEmpty = [nrow[0], nrow[1], nrow[2]].every(v => v === null || v === undefined || v === '');
       if (restEmpty && typeof nrow[3] === 'number') {
         current.usdDelta = nrow[3];
       }
@@ -207,6 +212,8 @@ function parseCostSummary(rows) {
 }
 
 module.exports = async function handler(req, res) {
+  // Allow this API to be called from any webpage (needed since the frontend
+  // HTML file is a different "origin" than this backend).
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
   if (req.method === 'OPTIONS') {
