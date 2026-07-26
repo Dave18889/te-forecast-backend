@@ -159,9 +159,11 @@ const PAGE_HTML = `<!DOCTYPE html>
     font-family: 'Inter', sans-serif; font-weight: 700; letter-spacing: 0.6px; text-transform: uppercase;
     background: var(--bg-soft); color: var(--text-faint); border: 1px solid var(--line);
   }
-  .conf-item.past .conf-header { opacity: 0.6; }
-  .conf-item.past .conf-header:hover { opacity: 0.9; }
+  .conf-item.past .conf-header { background: var(--bg-soft); border-color: var(--line); opacity: 0.72; }
+  .conf-item.past .conf-header:hover { opacity: 0.95; }
   .conf-item.past.open .conf-header { opacity: 1; }
+  .conf-item.past .conf-title { color: var(--text-soft); }
+  .conf-item.past .conf-code { color: var(--text-faint); border-color: var(--line); }
 
   .conf-meta { font-family: 'IBM Plex Mono', monospace; font-size: 11.5px; color: var(--text-soft); white-space: nowrap; text-align: right; min-width: 120px; line-height: 1.5; }
   .conf-meta b { color: var(--navy); }
