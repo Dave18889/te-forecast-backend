@@ -37,6 +37,20 @@ const PAGE_HTML = `<!DOCTYPE html>
     display: flex; align-items: center; justify-content: space-between;
     background: var(--navy); margin: 0 -24px 28px; padding: 38px 24px;
   }
+  .header-controls { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+  .header-btn {
+    font-family: 'Inter', sans-serif; font-size: 11.5px; font-weight: 600; color: #fff; background: rgba(255,255,255,0.12);
+    border: 1px solid rgba(255,255,255,0.25); border-radius: 4px; padding: 8px 14px; cursor: pointer; transition: background 0.15s ease;
+    white-space: nowrap;
+  }
+  .header-btn:hover { background: rgba(255,255,255,0.22); }
+  .header-btn.active { background: #fff; color: var(--navy); border-color: #fff; }
+  .clash-badge-global {
+    display: inline-flex; align-items: center; gap: 6px; font-family: 'Inter', sans-serif; font-weight: 700; font-size: 12px;
+    padding: 8px 14px; border-radius: 20px; cursor: pointer; border: none; white-space: nowrap;
+  }
+  .clash-badge-global.warn { background: var(--accent); color: #fff; }
+  .clash-badge-global.clear { background: rgba(255,255,255,0.12); color: rgba(255,255,255,0.7); cursor: default; }
   h1 {
     font-family: 'Libre Franklin', sans-serif; font-weight: 800; font-size: 38px; margin: 0;
     color: #fff; letter-spacing: -0.3px;
@@ -261,10 +275,83 @@ const PAGE_HTML = `<!DOCTYPE html>
     background: var(--bg-soft); border: 1px solid var(--line); border-radius: 6px; padding: 14px 18px;
   }
 
+  .days-until-badge {
+    display: inline-block; margin-left: 6px; padding: 1px 7px; border-radius: 3px; font-size: 10px;
+    font-family: 'IBM Plex Mono', monospace; font-weight: 700; background: #E3EBF5; color: var(--navy); white-space: nowrap;
+  }
+  .export-btn {
+    font-family: 'Inter', sans-serif; font-size: 11.5px; font-weight: 600; color: var(--navy); background: var(--bg);
+    border: 1px solid var(--line); border-radius: 4px; padding: 6px 13px; cursor: pointer; transition: background 0.15s ease;
+    white-space: nowrap;
+  }
+  .export-btn:hover { background: var(--bg-soft); }
+
+  .sort-export-row { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px 4px; }
+  .cost-export-row { display: flex; justify-content: flex-end; margin-bottom: 12px; }
+
   footer {
     margin-top: 22px; font-family: 'Inter', sans-serif; font-size: 11.5px; color: var(--text-faint);
     line-height: 1.7; border-top: 1px solid var(--line); padding-top: 18px;
   }
+/* ==================== Mobile ==================== */
+@media (max-width: 700px) {
+  .wrap { padding: 0 14px 60px; }
+
+  header {
+    flex-direction: column; align-items: flex-start; gap: 16px;
+    margin: 0 -14px 20px; padding: 22px 16px;
+  }
+  h1 { font-size: 23px; }
+  .header-controls { width: 100%; flex-wrap: wrap; gap: 8px; }
+  .header-btn, .clash-badge-global { flex: 1 1 auto; text-align: center; font-size: 11px; padding: 9px 10px; }
+
+  .mode-switch { width: 100%; }
+  .mode-btn { flex: 1; font-size: 12px; padding: 9px 8px; }
+
+  .tabs { flex-wrap: wrap; }
+  .tab { flex: 1 1 calc(33.333% - 7px); font-size: 13px; padding: 12px 8px; }
+
+  .region-summary, .cost-region-grid { display: block; }
+  .region-summary .stat-card {
+    border-right: none; border-bottom: 1px solid var(--line); padding: 14px 16px;
+  }
+  .region-summary .stat-card:last-child { border-bottom: none; }
+  .cost-region-grid .cost-region-card { margin-bottom: 10px; }
+
+  .search-row { flex-wrap: wrap; }
+  .search-box { flex-basis: 100%; }
+  .result-count { width: 100%; }
+
+  .sort-export-row { flex-direction: column; align-items: stretch; gap: 10px; padding: 14px 4px 4px; }
+  .sort-row { flex-wrap: wrap; }
+  #exportBrowseBtn, #exportCostBtn { width: 100%; }
+  .cost-export-row { justify-content: stretch; }
+
+  /* Stack conference rows vertically instead of a wide horizontal line */
+  .conf-header {
+    flex-direction: column; align-items: flex-start; gap: 10px; padding: 14px 16px;
+  }
+  .chevron { position: absolute; right: 16px; top: 14px; }
+  .conf-header { position: relative; padding-right: 40px; }
+  .conf-main, .conf-meta, .conf-dates { flex: none; width: 100%; text-align: left; }
+  .conf-meta, .conf-dates { display: flex; justify-content: space-between; align-items: baseline; }
+  .conf-dates .label { display: inline; margin-right: 6px; }
+  .conf-body { padding: 0 16px; }
+  .conf-item.open .conf-body { padding: 10px 16px 16px; }
+
+  /* Stack person rows the same way */
+  .person-header {
+    flex-direction: column; align-items: flex-start; gap: 8px; padding: 14px 16px; position: relative; padding-right: 40px;
+  }
+  .person-chevron { position: absolute; right: 16px; top: 16px; }
+  .person-name, .person-meta, .clash-status { width: 100%; }
+  .clash-status { display: inline-block; width: auto; }
+
+  table { font-size: 11px; }
+  thead th, tbody td { padding: 7px 8px; }
+
+  .cost-headline { flex-direction: column; align-items: flex-start; gap: 10px; }
+}
 </style>
 </head>
 <body>
@@ -273,6 +360,10 @@ const PAGE_HTML = `<!DOCTYPE html>
     <div>
       <h1>GPJ 2026 Gartner T&amp;E Forecast</h1>
       <div class="subtitle" id="subtitle"><span class="live-dot"></span>loading…</div>
+    </div>
+    <div class="header-controls">
+      <button class="header-btn" id="usdToggle">Show in USD</button>
+      <button class="clash-badge-global clear" id="clashBadgeGlobal">Checking for clashes…</button>
     </div>
   </header>
 
@@ -291,7 +382,10 @@ const PAGE_HTML = `<!DOCTYPE html>
     </div>
     <div class="field-chips" id="fieldChips"></div>
     <div class="panel">
-      <div class="sort-row" id="sortRow"></div>
+      <div class="sort-export-row">
+        <div class="sort-row" id="sortRow" style="padding:0; margin-bottom:0;"></div>
+        <button class="export-btn" id="exportBrowseBtn">Export CSV</button>
+      </div>
       <div class="conf-list" id="confList"></div>
       <div class="empty" id="emptyState" style="display:none;">No matching conferences — try a different search term.</div>
     </div>
@@ -302,12 +396,14 @@ const PAGE_HTML = `<!DOCTYPE html>
       <div class="search-box"><input type="text" id="personSearchInput" placeholder="Search by person name…" autocomplete="off"></div>
       <div class="result-count" id="personResultCount"></div>
     </div>
+    <div class="filter-row" style="margin-bottom:12px;"><button class="export-btn" id="exportPersonBtn">Export CSV</button></div>
     <div class="person-groups" id="personGroups"></div>
     <div class="empty" id="personEmptyState" style="display:none;">No matching person — try a different name.</div>
   </div>
 
   <div id="costView" style="display:none;">
     <div class="cost-headline" id="costHeadline"></div>
+    <div class="cost-export-row"><button class="export-btn" id="exportCostBtn">Export CSV</button></div>
     <div class="cost-region-grid" id="costRegionGrid"></div>
     <div class="cost-note">
       Figures are pulled directly from the "Cost Summary" tab in the source sheet, which compares each
@@ -437,6 +533,47 @@ function fmtDelta2(n, currencyLabel) {
   return \`\${sign}\${currencyLabel ? currencyLabel + ' ' : ''}\${formatted}\`;
 }
 
+// ---- USD conversion, using the client's approved 2026 peg rates ----
+const PEG_TO_USD = { USD: 1, AUD: 0.6683, EUR: 1.1741995, GBP: 1.3452993, INR: 0.0111264 };
+const BUDGET_CURRENCY_CODE = { NA: 'USD', LATAM: 'USD', APAC: 'AUD', JAPAN: 'AUD', INDIA: 'INR', EMEA: 'GBP' };
+const COST_CURRENCY_CODE = { NA: 'USD', LATAM: 'USD', APAC: 'AUD', JAPAN: 'AUD', INDIA: 'INR', EMEA: 'EUR' };
+let showUSD = false;
+
+function convertIfNeeded(n, currencyCode) {
+  if (n === null || n === undefined || !showUSD) return n;
+  const rate = PEG_TO_USD[currencyCode];
+  return rate ? n * rate : n;
+}
+// Wraps fmtBudget for Team Budget figures (region-aware currency, converts if toggled on)
+function budgetDisplay(n, region) {
+  const code = BUDGET_CURRENCY_CODE[region];
+  const val = convertIfNeeded(n, code);
+  const label = showUSD ? 'US$' : (BUDGET_CURRENCY_LABEL[region] || '');
+  return fmtBudget(val, label);
+}
+// Wraps fmtMoney2 for Cost Summary figures
+function costDisplay(n, region, nativeLabel) {
+  const code = COST_CURRENCY_CODE[region];
+  const val = convertIfNeeded(n, code);
+  const label = showUSD ? 'US$' : nativeLabel;
+  return fmtMoney2(val, label);
+}
+// Wraps fmtDelta2 for Cost Summary deltas
+function costDeltaDisplay(n, region, nativeLabel) {
+  const code = COST_CURRENCY_CODE[region];
+  const val = convertIfNeeded(n, code);
+  const label = showUSD ? 'US$' : nativeLabel;
+  return fmtDelta2(val, label);
+}
+
+document.getElementById('usdToggle').onclick = () => {
+  showUSD = !showUSD;
+  document.getElementById('usdToggle').classList.toggle('active', showUSD);
+  document.getElementById('usdToggle').textContent = showUSD ? 'Show native currencies' : 'Show in USD';
+  renderRegionSummary(); renderConfList(); renderCostView();
+  if (document.getElementById('personView').style.display !== 'none') renderPersonView();
+};
+
 let openCostRegions = new Set();
 
 function renderCostView() {
@@ -489,7 +626,7 @@ function renderCostView() {
     const deltaClass = !anyDeltaPresent ? 'none' : (computedDelta > 0 ? 'positive' : (computedDelta < 0 ? 'negative' : 'none'));
     const deltaText = !anyDeltaPresent
       ? 'No 2025 comparison available'
-      : \`\${fmtDelta2(computedDelta, currencyLabel)} YoY\`;
+      : \`\${costDeltaDisplay(computedDelta, block.region, currencyLabel)} YoY\`;
 
     const card = document.createElement('div');
     card.className = 'cost-region-card' + (isOpen ? ' open' : '');
@@ -499,7 +636,7 @@ function renderCostView() {
     head.innerHTML = \`
       <div>
         <div class="cost-region-name">\${block.region}</div>
-        <div class="cost-region-total">\${fmtMoney2(computedTotal2025, currencyLabel)}</div>
+        <div class="cost-region-total">\${costDisplay(computedTotal2025, block.region, currencyLabel)}</div>
         <div class="cost-region-delta \${deltaClass}">\${deltaText}</div>
       </div>
       <span class="cost-chevron">›</span>
@@ -520,9 +657,9 @@ function renderCostView() {
       const tr = document.createElement('tr');
       tr.innerHTML = \`
         <td>\${ev.code}</td>
-        <td>\${fmtMoney2(ev.price2025, currencyLabel)}</td>
-        <td>\${fmtMoney2(ev.price2026, currencyLabel)}</td>
-        <td>\${ev.delta === null || ev.delta === undefined ? '<span class="muted">—</span>' : fmtDelta2(ev.delta, currencyLabel)}</td>
+        <td>\${costDisplay(ev.price2025, block.region, currencyLabel)}</td>
+        <td>\${costDisplay(ev.price2026, block.region, currencyLabel)}</td>
+        <td>\${ev.delta === null || ev.delta === undefined ? '<span class="muted">—</span>' : costDeltaDisplay(ev.delta, block.region, currencyLabel)}</td>
       \`;
       tbody.appendChild(tr);
     });
@@ -532,9 +669,9 @@ function renderCostView() {
     totalsTr.style.fontWeight = '700';
     totalsTr.innerHTML = \`
       <td><b>Total</b></td>
-      <td><b>\${fmtMoney2(computedTotal2025, currencyLabel)}</b></td>
-      <td><b>\${anyPrice2026Present ? fmtMoney2(computedTotal2026, currencyLabel) : '<span class="muted">—</span>'}</b></td>
-      <td><b>\${anyDeltaPresent ? fmtDelta2(computedDelta, currencyLabel) : '<span class="muted">—</span>'}</b></td>
+      <td><b>\${costDisplay(computedTotal2025, block.region, currencyLabel)}</b></td>
+      <td><b>\${anyPrice2026Present ? costDisplay(computedTotal2026, block.region, currencyLabel) : '<span class="muted">—</span>'}</b></td>
+      <td><b>\${anyDeltaPresent ? costDeltaDisplay(computedDelta, block.region, currencyLabel) : '<span class="muted">—</span>'}</b></td>
     \`;
     tbody.appendChild(totalsTr);
     table.appendChild(tbody);
@@ -582,7 +719,7 @@ function renderRegionSummary() {
 
   regionSummaryEl.innerHTML = \`
     <div class="stat-card">
-      <div class="stat-value">\${BUDGET_CURRENCY_LABEL[currentRegion] || ''} \${totalCost.toLocaleString('en-US')}</div>
+      <div class="stat-value">\${budgetDisplay(totalCost, currentRegion)}</div>
       <div class="stat-label">Total forecasted cost</div>
     </div>
     <div class="stat-card">
@@ -706,6 +843,13 @@ function renderConfList() {
     const confCode = extractConfCode(c.conference);
     const confName = stripConfCode(c.conference);
 
+    let daysUntilBadge = '';
+    if (!isPast && c.eventStart) {
+      const daysUntil = Math.round((new Date(c.eventStart + 'T00:00:00') - new Date(TODAY_ISO + 'T00:00:00')) / 86400000);
+      if (daysUntil === 0) daysUntilBadge = '<span class="days-until-badge">today</span>';
+      else if (daysUntil > 0) daysUntilBadge = \`<span class="days-until-badge">in \${daysUntil} day\${daysUntil === 1 ? '' : 's'}</span>\`;
+    }
+
     const head = document.createElement('div');
     head.className = 'conf-header';
     head.innerHTML = \`
@@ -715,11 +859,12 @@ function renderConfList() {
           <span class="conf-title">\${highlight(confName, activeFields.has("conference") ? term : "")}</span>
           \${confCode ? \`<span class="conf-code">\${confCode}</span>\` : ''}
           \${isPast ? '<span class="past-badge">Completed</span>' : ''}
+          \${daysUntilBadge}
         </div>
         \${c.venue ? \`<div class="conf-venue">\${highlight(c.venue, activeFields.has("venue") ? term : "")}</div>\` : ''}
         \${regLead ? \`<div class="conf-reglead"><b>Reg Lead</b> \${regLead}</div>\` : ''}
       </div>
-      <div class="conf-meta"><b>\${c.people.length}</b> on team<br>\${BUDGET_CURRENCY_LABEL[c.region] || ''} \${budgetTotal.toLocaleString('en-US')} total</div>
+      <div class="conf-meta"><b>\${c.people.length}</b> on team<br>\${budgetDisplay(budgetTotal, c.region)} total</div>
       <div class="conf-dates"><span class="label">Event</span>\${fmtDate(c.eventStart)}<span class="dash">–</span>\${fmtDateFull(c.eventEnd)}</div>
     \`;
     head.onclick = () => {
@@ -747,7 +892,7 @@ function renderConfList() {
         <td><span class="role-pill">\${highlight(p.role, activeFields.has("role") ? term : "")}</span></td>
         <td>\${fmtDateFull(p.inDate)}</td>
         <td>\${fmtDateFull(p.outDate)}</td>
-        <td>\${fmtBudget(p.totalBudget, BUDGET_CURRENCY_LABEL[c.region])}</td>
+        <td>\${budgetDisplay(p.totalBudget, c.region)}</td>
       \`;
       tbody.appendChild(tr);
     });
@@ -762,7 +907,7 @@ function renderConfList() {
   resultCount.textContent = \`\${confs.length} of \${groupConferences(currentRegion).length} conferences\`;
 }
 
-function renderAll() { renderTabs(); renderRegionSummary(); renderChips(); renderSortRow(); renderConfList(); }
+function renderAll() { renderTabs(); renderRegionSummary(); renderChips(); renderSortRow(); renderConfList(); renderGlobalClashBadge(); }
 searchInput.addEventListener('input', renderConfList);
 
 function datesOverlap(aStart, aEnd, bStart, bEnd) { return aStart <= bEnd && bStart <= aEnd; }
@@ -781,7 +926,105 @@ function computeClashes(records) {
   return clashSet;
 }
 
+// Runs across EVERY assigned person, regardless of how many conferences they
+// have — used for the always-visible header badge so a clash is never hidden
+// behind the By Person tab's 4+ filter.
+function computeGlobalClashCount() {
+  const byPerson = {};
+  RECORDS.forEach(r => {
+    if (!r.person || !r.inDate || !r.outDate) return;
+    (byPerson[r.person] = byPerson[r.person] || []).push(r);
+  });
+  let count = 0;
+  Object.values(byPerson).forEach(records => {
+    if (computeClashes(records).size > 0) count++;
+  });
+  return count;
+}
+
+function renderGlobalClashBadge() {
+  const badge = document.getElementById('clashBadgeGlobal');
+  const count = computeGlobalClashCount();
+  if (count > 0) {
+    badge.className = 'clash-badge-global warn';
+    badge.textContent = \`⚠ \${count} people with overlapping trips\`;
+    badge.onclick = () => { setMode('person'); };
+  } else {
+    badge.className = 'clash-badge-global clear';
+    badge.textContent = 'No overlapping trips detected';
+    badge.onclick = null;
+  }
+}
+
 let openPersons = new Set();
+
+// ---- CSV export ----
+function downloadCSV(filename, headers, rows) {
+  const escape = (v) => {
+    const s = (v === null || v === undefined) ? '' : String(v);
+    return /[",\\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  };
+  const lines = [headers.map(escape).join(',')].concat(rows.map(r => r.map(escape).join(',')));
+  const blob = new Blob([lines.join('\\n')], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+document.getElementById('exportBrowseBtn').onclick = () => {
+  const rows = [];
+  const confs = groupConferences(currentRegion);
+  confs.forEach(c => {
+    c.people.forEach(p => {
+      rows.push([
+        c.region, stripConfCode(c.conference), extractConfCode(c.conference) || '', c.venue || '',
+        c.eventStart || '', c.eventEnd || '', p.person || 'Unassigned', p.role || '',
+        p.inDate || '', p.outDate || '', p.totalBudget !== null && p.totalBudget !== undefined ? p.totalBudget : '',
+        BUDGET_CURRENCY_LABEL[c.region] || ''
+      ]);
+    });
+  });
+  downloadCSV(\`\${currentRegion}-conferences.csv\`,
+    ['Region','Conference','Code','Venue','Event Start','Event End','Person','Role','In Date','Out Date','Total Budget','Currency'],
+    rows);
+};
+
+document.getElementById('exportPersonBtn').onclick = () => {
+  const counts = {};
+  RECORDS.forEach(r => { if (r.person) counts[r.person] = (counts[r.person] || 0) + 1; });
+  const people = Object.keys(counts).filter(p => counts[p] > 3).sort();
+  const rows = [];
+  people.forEach(person => {
+    const records = RECORDS.filter(r => r.person === person).slice().sort((a,b) => (a.inDate||'').localeCompare(b.inDate||''));
+    const clashSet = computeClashes(records);
+    records.forEach((r, i) => {
+      rows.push([person, r.region, r.conference, r.role, r.inDate || '', r.outDate || '',
+        r.totalBudget !== null && r.totalBudget !== undefined ? r.totalBudget : '', BUDGET_CURRENCY_LABEL[r.region] || '',
+        clashSet.has(i) ? 'Yes' : 'No']);
+    });
+  });
+  downloadCSV('people-conferences.csv',
+    ['Person','Region','Conference','Role','In Date','Out Date','Total Budget','Currency','Overlaps Another Trip'],
+    rows);
+};
+
+document.getElementById('exportCostBtn').onclick = () => {
+  if (!COST_SUMMARY) return;
+  const rows = [];
+  COST_SUMMARY.blocks.forEach(block => {
+    const currencyLabel = CURRENCY_LABEL[block.region] || block.currency || '';
+    block.events.forEach(ev => {
+      rows.push([block.region, ev.code, ev.price2025 ?? '', ev.price2026 ?? '', ev.delta ?? '', currencyLabel]);
+    });
+    const t2025 = block.events.reduce((s,ev) => s + (ev.price2025 || 0), 0);
+    const t2026 = block.events.reduce((s,ev) => s + (ev.price2026 || 0), 0);
+    const tDelta = block.events.reduce((s,ev) => s + (ev.delta !== null && ev.delta !== undefined ? ev.delta : 0), 0);
+    rows.push([block.region, 'TOTAL', t2025, t2026, tDelta, currencyLabel]);
+  });
+  downloadCSV('cost-summary.csv', ['Region','Conference Code','2025 Actual','2026 Actual','Delta','Currency'], rows);
+};
 
 function renderPersonView() {
   const term = personSearchInput.value.trim().toLowerCase();
@@ -804,10 +1047,24 @@ function renderPersonView() {
 
     const budgetTotal = records.reduce((s,r)=> s + (r.totalBudget||0), 0);
     const distinctRegions = new Set(records.map(r => r.region));
-    const aggCurrency = distinctRegions.size === 1 ? (BUDGET_CURRENCY_LABEL[records[0].region] || '') : null;
-    const budgetTotalText = aggCurrency
-      ? \`\${aggCurrency} \${budgetTotal.toLocaleString('en-US')}\`
-      : \`\${budgetTotal.toLocaleString('en-US')} (mixed currencies)\`;
+    let budgetTotalText;
+    if (showUSD) {
+      const usdSum = records.reduce((s,r) => s + (convertIfNeeded(r.totalBudget, BUDGET_CURRENCY_CODE[r.region]) || 0), 0);
+      budgetTotalText = \`US$ \${usdSum.toLocaleString('en-US')}\`;
+    } else {
+      const aggCurrency = distinctRegions.size === 1 ? (BUDGET_CURRENCY_LABEL[records[0].region] || '') : null;
+      budgetTotalText = aggCurrency
+        ? \`\${aggCurrency} \${budgetTotal.toLocaleString('en-US')}\`
+        : \`\${budgetTotal.toLocaleString('en-US')} (mixed currencies)\`;
+    }
+
+    // Total travel days: sum of onsite nights across all trips (simple sum, not
+    // de-duplicated for overlaps — clashes are already flagged separately above).
+    const totalTravelDays = records.reduce((s,r) => {
+      if (!r.inDate || !r.outDate) return s;
+      const days = Math.round((new Date(r.outDate) - new Date(r.inDate)) / 86400000) + 1;
+      return s + Math.max(days, 0);
+    }, 0);
 
     const item = document.createElement('div');
     item.className = 'person-item' + (isOpen ? ' open' : '') + (hasClash ? ' has-clash' : '');
@@ -817,7 +1074,7 @@ function renderPersonView() {
     header.innerHTML = \`
       <span class="person-chevron">›</span>
       <div class="person-name">\${person}</div>
-      <div class="person-meta">\${records.length} conference\${records.length === 1 ? '' : 's'} · \${budgetTotalText} total</div>
+      <div class="person-meta">\${records.length} conference\${records.length === 1 ? '' : 's'} · \${totalTravelDays} travel day\${totalTravelDays === 1 ? '' : 's'} · \${budgetTotalText} total</div>
       <div class="clash-status \${hasClash ? 'warn' : 'clear'}">\${hasClash ? \`⚠ \${clashSet.size} overlapping trip\${clashSet.size===1?'':'s'}\` : '✓ No clashes'}</div>
     \`;
     header.onclick = () => {
@@ -843,7 +1100,7 @@ function renderPersonView() {
         <td><span class="role-pill">\${r.role}</span></td>
         <td>\${fmtDateFull(r.inDate)}</td>
         <td>\${fmtDateFull(r.outDate)}</td>
-        <td>\${fmtBudget(r.totalBudget, BUDGET_CURRENCY_LABEL[r.region])}</td>
+        <td>\${budgetDisplay(r.totalBudget, r.region)}</td>
       \`;
       tbody.appendChild(tr);
     });
