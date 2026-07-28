@@ -581,7 +581,12 @@ let openCostRegions = new Set();
 // conference code between the two datasets.
 function teamBudgetForConference(region, code) {
   if (!code) return null;
-  const matches = RECORDS.filter(r => r.region === region && extractConfCode(r.conference) === code);
+  const normalizedCode = code.trim().toUpperCase();
+  const matches = RECORDS.filter(r => {
+    if (r.region !== region) return false;
+    const rCode = extractConfCode(r.conference);
+    return rCode && rCode.trim().toUpperCase() === normalizedCode;
+  });
   if (matches.length === 0) return null;
   return matches.reduce((s,r) => s + (r.totalBudget || 0), 0);
 }
