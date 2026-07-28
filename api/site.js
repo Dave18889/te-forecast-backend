@@ -480,7 +480,7 @@ const personGroups = document.getElementById('personGroups');
 const personResultCount = document.getElementById('personResultCount');
 const personEmptyState = document.getElementById('personEmptyState');
 
-subtitle.innerHTML = \`<span class="live-dot"></span>\${REGIONS.length} region sheets · \${RECORDS.length} assignments · \${new Set(RECORDS.map(r=>r.conference)).size} conferences\`;
+subtitle.innerHTML = \`<span class="live-dot"></span>\${REGIONS.length} region sheets · \${RECORDS.length} assignments · \${new Set(RECORDS.filter(r => !isAirport(r.conference)).map(r=>r.conference)).size} conferences\`;
 
 function fmtDate(iso) {
   if (!iso) return '<span class="muted">—</span>';
@@ -685,7 +685,7 @@ function renderCostView() {
 function renderTabs() {
   tabsEl.innerHTML = "";
   REGIONS.forEach(region => {
-    const confCount = new Set(RECORDS.filter(r => r.region === region).map(r => r.conference)).size;
+    const confCount = new Set(RECORDS.filter(r => r.region === region && !isAirport(r.conference)).map(r => r.conference)).size;
     const btn = document.createElement('button');
     btn.className = 'tab' + (region === currentRegion ? ' active' : '');
     btn.innerHTML = \`\${region} <span class="count">\${confCount}</span>\`;
@@ -715,7 +715,7 @@ function renderRegionSummary() {
   const regionRecords = RECORDS.filter(r => r.region === currentRegion);
   const totalCost = regionRecords.reduce((s,r) => s + (r.totalBudget||0), 0);
   const uniquePeople = new Set(regionRecords.map(r => r.person).filter(Boolean)).size;
-  const confCount = new Set(regionRecords.map(r => r.conference)).size;
+  const confCount = new Set(regionRecords.filter(r => !isAirport(r.conference)).map(r => r.conference)).size;
 
   regionSummaryEl.innerHTML = \`
     <div class="stat-card">
@@ -778,9 +778,17 @@ function highlight(text, term) {
   return text.slice(0, idx) + '<mark>' + text.slice(idx, idx + term.length) + '</mark>' + text.slice(idx + term.length);
 }
 
+// "Airport" entries are satellite/logistics assignments tied to an existing
+// conference (same code, e.g. SYM36 appears as both the main conference and
+// an "Airport" variant) — not a standalone conference, so they're excluded
+// from conference lists, counts, and clash detection.
+function isAirport(conference) {
+  return /airport/i.test(conference || '');
+}
+
 function groupConferences(region) {
   const map = new Map();
-  RECORDS.filter(r => r.region === region).forEach(r => {
+  RECORDS.filter(r => r.region === region && !isAirport(r.conference)).forEach(r => {
     if (!map.has(r.conference)) {
       map.set(r.conference, {
         conference: r.conference,
@@ -912,12 +920,22 @@ searchInput.addEventListener('input', renderConfList);
 
 function datesOverlap(aStart, aEnd, bStart, bEnd) { return aStart <= bEnd && bStart <= aEnd; }
 
+// A record doesn't count toward a clash if its conference has already
+// completed, or if it's an "Airport" satellite assignment rather than a
+// real standalone conference — neither represents an active scheduling risk.
+function excludedFromClash(record) {
+  const completed = record.eventEnd && record.eventEnd < TODAY_ISO;
+  return completed || isAirport(record.conference);
+}
+
 function computeClashes(records) {
   const clashSet = new Set();
   for (let i = 0; i < records.length; i++) {
     if (!records[i].inDate || !records[i].outDate) continue;
+    if (excludedFromClash(records[i])) continue;
     for (let j = i + 1; j < records.length; j++) {
       if (!records[j].inDate || !records[j].outDate) continue;
+      if (excludedFromClash(records[j])) continue;
       if (datesOverlap(records[i].inDate, records[i].outDate, records[j].inDate, records[j].outDate)) {
         clashSet.add(i); clashSet.add(j);
       }
