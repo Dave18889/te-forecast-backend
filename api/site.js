@@ -576,6 +576,16 @@ document.getElementById('usdToggle').onclick = () => {
 
 let openCostRegions = new Set();
 
+// Looks up the "T&E Forecast" figure for a conference — the same team
+// budget total shown in the Browse by Region tab — by matching region +
+// conference code between the two datasets.
+function teamBudgetForConference(region, code) {
+  if (!code) return null;
+  const matches = RECORDS.filter(r => r.region === region && extractConfCode(r.conference) === code);
+  if (matches.length === 0) return null;
+  return matches.reduce((s,r) => s + (r.totalBudget || 0), 0);
+}
+
 function renderCostView() {
   const headlineEl = document.getElementById('costHeadline');
   const gridEl = document.getElementById('costRegionGrid');
@@ -651,12 +661,17 @@ function renderCostView() {
     const body = document.createElement('div');
     body.className = 'cost-region-body';
     const table = document.createElement('table');
-    table.innerHTML = \`<thead><tr><th>Conference</th><th>2025 Actual</th><th>2026 Actual</th><th>Delta</th></tr></thead>\`;
+    table.innerHTML = \`<thead><tr><th>Conference</th><th>T&E Forecast</th><th>2025 Actual</th><th>2026 Actual</th><th>YoY Delta</th></tr></thead>\`;
     const tbody = document.createElement('tbody');
+    let teamForecastTotal = 0;
+    let anyTeamForecastPresent = false;
     block.events.forEach(ev => {
+      const teamForecast = teamBudgetForConference(block.region, ev.code);
+      if (teamForecast !== null) { teamForecastTotal += teamForecast; anyTeamForecastPresent = true; }
       const tr = document.createElement('tr');
       tr.innerHTML = \`
         <td>\${ev.code}</td>
+        <td>\${teamForecast !== null ? budgetDisplay(teamForecast, block.region) : '<span class="muted">—</span>'}</td>
         <td>\${costDisplay(ev.price2025, block.region, currencyLabel)}</td>
         <td>\${costDisplay(ev.price2026, block.region, currencyLabel)}</td>
         <td>\${ev.delta === null || ev.delta === undefined ? '<span class="muted">—</span>' : costDeltaDisplay(ev.delta, block.region, currencyLabel)}</td>
@@ -669,6 +684,7 @@ function renderCostView() {
     totalsTr.style.fontWeight = '700';
     totalsTr.innerHTML = \`
       <td><b>Total</b></td>
+      <td><b>\${anyTeamForecastPresent ? budgetDisplay(teamForecastTotal, block.region) : '<span class="muted">—</span>'}</b></td>
       <td><b>\${costDisplay(computedTotal2025, block.region, currencyLabel)}</b></td>
       <td><b>\${anyPrice2026Present ? costDisplay(computedTotal2026, block.region, currencyLabel) : '<span class="muted">—</span>'}</b></td>
       <td><b>\${anyDeltaPresent ? costDeltaDisplay(computedDelta, block.region, currencyLabel) : '<span class="muted">—</span>'}</b></td>
@@ -1033,15 +1049,18 @@ document.getElementById('exportCostBtn').onclick = () => {
   const rows = [];
   COST_SUMMARY.blocks.forEach(block => {
     const currencyLabel = CURRENCY_LABEL[block.region] || block.currency || '';
+    let teamForecastTotal = 0;
     block.events.forEach(ev => {
-      rows.push([block.region, ev.code, ev.price2025 ?? '', ev.price2026 ?? '', ev.delta ?? '', currencyLabel]);
+      const teamForecast = teamBudgetForConference(block.region, ev.code);
+      if (teamForecast !== null) teamForecastTotal += teamForecast;
+      rows.push([block.region, ev.code, teamForecast ?? '', ev.price2025 ?? '', ev.price2026 ?? '', ev.delta ?? '', currencyLabel]);
     });
     const t2025 = block.events.reduce((s,ev) => s + (ev.price2025 || 0), 0);
     const t2026 = block.events.reduce((s,ev) => s + (ev.price2026 || 0), 0);
     const tDelta = block.events.reduce((s,ev) => s + (ev.delta !== null && ev.delta !== undefined ? ev.delta : 0), 0);
-    rows.push([block.region, 'TOTAL', t2025, t2026, tDelta, currencyLabel]);
+    rows.push([block.region, 'TOTAL', teamForecastTotal, t2025, t2026, tDelta, currencyLabel]);
   });
-  downloadCSV('cost-summary.csv', ['Region','Conference Code','2025 Actual','2026 Actual','Delta','Currency'], rows);
+  downloadCSV('cost-summary.csv', ['Region','Conference Code','T&E Forecast','2025 Actual','2026 Actual','YoY Delta','Currency'], rows);
 };
 
 function renderPersonView() {
