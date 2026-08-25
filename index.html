@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>2026 Gartner T&E Forecast</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@600;700;800&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>GPJ 2026 Gartner T&amp;E Forecast</h1>
+      <div class="subtitle" id="subtitle"><span class="live-dot"></span>loading…</div>
+    </div>
+    <div class="header-controls">
+      <button class="header-btn" id="usdToggle">Show in USD</button>
+      <button class="clash-badge-global clear" id="clashBadgeGlobal">Checking for clashes…</button>
+    </div>
+  </header>
+
+  <div class="mode-switch">
+    <button class="mode-btn active" id="modeBrowse">Browse by region</button>
+    <button class="mode-btn" id="modePerson">By person / clash check</button>
+    <button class="mode-btn" id="modeCost">Cost Summary</button>
+  </div>
+
+  <div id="browseView">
+    <div class="tabs" id="tabs"></div>
+    <div class="region-summary" id="regionSummary"></div>
+    <div class="search-row">
+      <div class="search-box"><input type="text" id="searchInput" placeholder="Search conferences, people, roles…" autocomplete="off"></div>
+      <div class="result-count" id="resultCount"></div>
+    </div>
+    <div class="field-chips" id="fieldChips"></div>
+    <div class="panel">
+      <div class="sort-export-row">
+        <div class="sort-row" id="sortRow" style="padding:0; margin-bottom:0;"></div>
+        <button class="export-btn" id="exportBrowseBtn">Export CSV</button>
+      </div>
+      <div class="conf-list" id="confList"></div>
+      <div class="empty" id="emptyState" style="display:none;">No matching conferences — try a different search term.</div>
+    </div>
+  </div>
+
+  <div id="personView" style="display:none;">
+    <div class="search-row">
+      <div class="search-box"><input type="text" id="personSearchInput" placeholder="Search by person name…" autocomplete="off"></div>
+      <div class="result-count" id="personResultCount"></div>
+    </div>
+    <div class="filter-row" style="margin-bottom:12px;"><button class="export-btn" id="exportPersonBtn">Export CSV</button></div>
+    <div class="person-groups" id="personGroups"></div>
+    <div class="empty" id="personEmptyState" style="display:none;">No matching person — try a different name.</div>
+  </div>
+
+  <div id="costView" style="display:none;">
+    <div class="cost-headline" id="costHeadline"></div>
+    <div class="cost-export-row"><button class="export-btn" id="exportCostBtn">Export CSV</button></div>
+    <div class="cost-region-grid" id="costRegionGrid"></div>
+    <div class="cost-note">
+      Figures are pulled directly from the "Cost Summary" tab in the source sheet, which compares each
+      conference's actual 2025 spend to its 2026 forecast. Totals are shown in each region's native currency
+      as entered in the sheet (NA and LATAM in $; APAC and JAPAN in AUS$; India in INR; EMEA in €). Note that
+      Team Budget figures elsewhere on the site (Browse by region, By Person) use a different source dataset —
+      EMEA's Team Budget figures are in £ (GBP), not €, confirmed against the client's approved 2026 peg rates.
+      The small USD-equivalent delta lets you compare regions on the same basis even though the totals themselves
+      aren't converted. LATAM has no year-over-year comparison since most of its conferences don't yet have a
+      matching 2025 actual on record.
+    </div>
+  </div>
+
+  <footer>
+    Parsed from your uploaded 2026 Gartner T&amp;E Forecast workbook (NA, LATAM, EMEA, INDIA, APAC, JAPAN tabs).
+    "Total Budget" is shown exactly as entered in the source sheet — note India's figures appear to be in a
+    different currency scale (likely INR) than the other regions, so don't sum across regions without checking.
+    Rows with no onsite dates are excluded from the clash check since there's nothing to compare. A flagged pair
+    is split into two kinds: a <b>clash</b> (different cities — a genuine scheduling conflict) and a
+    <b>back-to-back</b> (same city, just a same-day handoff between events — not a problem, just worth knowing
+    about). Within each expanded conference, the team is ordered Reg Lead → Reg Support → IT Lead → IT Support →
+    other roles → Zone Leads. The <span class="cross-region-badge" style="margin-left:0;">⇄ REGION</span> badge
+    marks someone whose home region (from the "Team View" tab) differs from the conference's region — this is
+    only shown for the ~49 people who appear in that tab; others can't be checked against it.
+  </footer>
+</div>
+
+<script src="app.js"></script>
+
+</body>
+</html>
