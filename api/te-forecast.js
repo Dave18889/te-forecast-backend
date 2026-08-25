@@ -1241,21 +1241,29 @@ module.exports = function handler(req, res) {
     return res.status(200).end();
   }
 
-  const auth = req.headers.authorization;
   const expectedUser = process.env.SITE_USER;
   const expectedPass = process.env.SITE_PASSWORD;
 
-  let authorized = false;
-  if (auth && auth.startsWith('Basic ')) {
-    const decoded = Buffer.from(auth.slice(6), 'base64').toString('utf8');
-    const [user, pass] = decoded.split(':');
-    authorized = user === expectedUser && pass === expectedPass;
-  }
+  // If no password has been configured, don't prompt for one — the page
+  // loads normally. A login is only enforced once BOTH variables are set.
+  const passwordConfigured = !!expectedUser && !!expectedPass;
 
-  if (!authorized) {
-    res.setHeader('WWW-Authenticate', 'Basic realm="T&E Forecast"');
-    res.status(401).send('Authentication required.');
-    return;
+  if (passwordConfigured) {
+    const auth = req.headers.authorization;
+    let authorized = false;
+    if (auth && auth.startsWith('Basic ')) {
+      const decoded = Buffer.from(auth.slice(6), 'base64').toString('utf8');
+      const separatorIndex = decoded.indexOf(':');
+      const user = decoded.slice(0, separatorIndex);
+      const pass = decoded.slice(separatorIndex + 1);
+      authorized = user === expectedUser && pass === expectedPass;
+    }
+
+    if (!authorized) {
+      res.setHeader('WWW-Authenticate', 'Basic realm="T&E Forecast"');
+      res.status(401).send('Authentication required.');
+      return;
+    }
   }
 
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
